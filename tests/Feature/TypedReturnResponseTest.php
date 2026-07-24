@@ -8,6 +8,9 @@ use Illuminate\Contracts\Container\Container;
 use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\Route;
 use LogicException;
+use Radiergummi\OpenApi\Attributes\Response;
+use Radiergummi\OpenApi\Lint\LintOptions;
+use Radiergummi\OpenApi\Lint\LintRunner;
 use Radiergummi\OpenApi\Plugins\Core\Envelopes\NoneEnvelope;
 use Radiergummi\OpenApi\Registry\OpenApiRegistry;
 use Radiergummi\OpenApi\Support\Extraction\TypedReturnResponseResolver;
@@ -140,6 +143,24 @@ class TypedReturnController extends Controller
     }
 
     public function nullableDto(): ?PlainReturnDto
+    {
+        throw new LogicException('Signature-only fixture; never invoked.');
+    }
+
+    public function neverReturn(): never
+    {
+        throw new LogicException('Signature-only fixture; never invoked.');
+    }
+
+    #[Response(status: 200, description: 'OK')]
+    public function neverWithResponseAttribute(): never
+    {
+        throw new LogicException('Signature-only fixture; never invoked.');
+    }
+
+    // A resourceful action name on a matching verb, so a convention status (204) would apply —
+    // proving suppression skips the convention branch instead of crashing on a null primary.
+    public function destroy(): never
     {
         throw new LogicException('Signature-only fixture; never invoked.');
     }
@@ -327,6 +348,51 @@ it('wraps a nullable plain-DTO return in the OAS 3.1 nullable idiom', function (
     expect($schema['oneOf'] ?? null)->toHaveCount(2)
         ->and($schema['oneOf'][0]['$ref'])->toBe('#/components/schemas/PlainReturnDto')
         ->and($schema['oneOf'][1])->toBe(['type' => 'null']);
+});
+
+it('suppresses the synthetic 200 for a never return', function (): void {
+    Route::get('/typed/never', [TypedReturnController::class, 'neverReturn']);
+
+    $responses = generateSpec()['paths']['/typed/never']['get']['responses'] ?? [];
+
+    // The action cannot succeed, so no 2xx is documented (and no synthetic empty 200).
+    $successStatuses = array_filter(
+        array_keys($responses),
+        static fn(int|string $status): bool => (int) $status >= 200 && (int) $status <= 299,
+    );
+
+    expect($successStatuses)->toBe([]);
+});
+
+it('lets an explicit 2xx #[Response] win over never suppression', function (): void {
+    Route::get('/typed/never-explicit', [TypedReturnController::class, 'neverWithResponseAttribute']);
+
+    $response = generateSpec()['paths']['/typed/never-explicit']['get']['responses']['200'] ?? null;
+
+    expect($response)->not->toBeNull()
+        ->and($response['description'])->toBe('OK');
+});
+
+it('does not emit operation.return-type-missing for a never return (suppression is intentional)', function (): void {
+    Route::get('/typed/never-lint', [TypedReturnController::class, 'neverReturn']);
+    app()->forgetScopedInstances();
+
+    $result = app(LintRunner::class)->run(new LintOptions(
+        only: ['operation.return-type-missing'],
+        uriGlob: 'typed/never-lint',
+    ));
+
+    expect($result->findings)->toBe([]);
+});
+
+it('skips the convention status for a never return without crashing on a null primary', function (): void {
+    // `destroy` on DELETE resolves a 204 convention status; suppression must skip that branch.
+    Route::delete('/typed/never-destroy', [TypedReturnController::class, 'destroy']);
+
+    $responses = generateSpec()['paths']['/typed/never-destroy']['delete']['responses'] ?? [];
+
+    expect($responses)->not->toHaveKey('204')
+        ->and($responses)->not->toHaveKey('200');
 });
 
 it('shapes a plain DTO with every convention plugin disabled (language-level path)', function (): void {

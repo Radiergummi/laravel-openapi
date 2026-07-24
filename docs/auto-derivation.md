@@ -177,6 +177,24 @@ models, API Resources, Fractal transformers, and paginators keep the richer
 schemas documented below; the typed-return baseline fires only when none of them
 claims the action (including when the Core plugin is disabled).
 
+### Framework HTTP response return types
+
+Three framework return types carry their whole response contract in the declared
+type alone (Tier-0, no body parsing). App subclasses of each are matched too:
+
+- **`never`** — the action cannot complete successfully (it always throws), so it
+  has **no** success response: the synthetic `200` is suppressed entirely rather
+  than documented as an empty body. (This suppression is language-level, so it
+  works with the Core plugin disabled.)
+- **`RedirectResponse`** — a `302 Found` with a `Location` response header
+  (`type: string, format: uri`) and no body.
+- **`StreamedResponse` / `BinaryFileResponse`** — a binary `200`
+  (`application/octet-stream`, `{type: string, format: binary}`).
+
+A union return that includes any of these carries more than one contract, so it
+is refused and degrades to the prior behaviour (a bare `200`). An explicit
+`#[Response]` on the action always wins over each of these reads.
+
 ## Eloquent model response schemas
 
 When a controller action's return type is an Eloquent `Model` subclass, the
