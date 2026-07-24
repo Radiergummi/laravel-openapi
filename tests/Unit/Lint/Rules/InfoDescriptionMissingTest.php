@@ -74,7 +74,7 @@ it('emits a finding when info.description is missing or blank', function (?strin
 
 it('emits no findings when info.description is set', function (): void {
     $rule = new InfoDescriptionMissing();
-    $context = makeInfoContext('The Matchory supplier discovery API.');
+    $context = makeInfoContext('The Example Pet Store API.');
 
     $findings = iterator_to_array($rule->checkApi($context->api, $context));
 
