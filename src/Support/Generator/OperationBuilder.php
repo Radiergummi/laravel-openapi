@@ -284,37 +284,39 @@ final readonly class OperationBuilder
             ?? $autoPrimaryResponse
             ?? ($autoSuppressed ? null : new OA\Response(['response' => '200', 'description' => 'OK']));
 
-        // A 204 forbids a body; a content-bearing body-scanned response is stronger evidence of the
-        // real status, so it keeps its 200 + schema instead of being discarded for a bogus 204.
-        $conventionSuppressedByBody = $convention?->successStatusCode === 204
-            && $autoPrimaryResponse !== null
-            && is_array($autoPrimaryResponse->content)
-            && $autoPrimaryResponse->content !== [];
+        // The whole status-resolution region reads $primaryResponse->response, so it is skipped
+        // entirely when suppressed (a `never` action has no primary response to carry a status or
+        // record its provenance); the null $statusProvenance is dropped by array_filter below.
+        $statusProvenance = null;
 
-        // Apply convention status unless an explicit #[Response(2xx)] or body-scanned status claimed
-        // it, or a 204 convention is yielding to a content-bearing body. Skipped when suppressed:
-        // a `never` action has no primary response for a convention status to attach to.
-        if (
-            $primaryResponse !== null
-            && $primaryOverride === null
-            && !$autoStatusIsExplicit
-            && $convention?->successStatusCode !== null
-            && !$conventionSuppressedByBody
-        ) {
-            $primaryResponse = $this->applyConventionStatus($primaryResponse, $convention->successStatusCode);
-        }
+        if ($primaryResponse !== null) {
+            // A 204 forbids a body; a content-bearing body-scanned response is stronger evidence of
+            // the real status, so it keeps its 200 + schema instead of being discarded for a bogus 204.
+            $conventionSuppressedByBody = $convention?->successStatusCode === 204
+                && $autoPrimaryResponse !== null
+                && is_array($autoPrimaryResponse->content)
+                && $autoPrimaryResponse->content !== [];
 
-        // A suppressed primary records no status provenance: the null entry is dropped by array_filter.
-        $statusProvenance = $primaryResponse !== null
-            ? $this->statusProvenance(
+            // Apply convention status unless an explicit #[Response(2xx)] or body-scanned status
+            // claimed it, or a 204 convention is yielding to a content-bearing body.
+            if (
+                $primaryOverride === null
+                && !$autoStatusIsExplicit
+                && $convention?->successStatusCode !== null
+                && !$conventionSuppressedByBody
+            ) {
+                $primaryResponse = $this->applyConventionStatus($primaryResponse, $convention->successStatusCode);
+            }
+
+            $statusProvenance = $this->statusProvenance(
                 (string) $primaryResponse->response,
                 $primaryOverride !== null,
                 $autoStatusIsExplicit,
                 $conventionSuppressedByBody,
                 $resolvedConvention,
                 $action,
-            )
-            : null;
+            );
+        }
 
         // Primary 2xx first; ErrorResponseInferenceStage appends errors later, skipping statuses already declared.
         $responses = $primaryResponse !== null

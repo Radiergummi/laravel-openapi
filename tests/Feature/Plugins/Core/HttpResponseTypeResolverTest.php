@@ -41,6 +41,11 @@ class HttpResponseTypeController extends Controller
         throw new LogicException('Signature-only fixture; never invoked.');
     }
 
+    public function nullableRedirect(): ?RedirectResponse
+    {
+        throw new LogicException('Signature-only fixture; never invoked.');
+    }
+
     public function redirectUnion(): RedirectResponse|JsonResponse
     {
         throw new LogicException('Signature-only fixture; never invoked.');
@@ -112,6 +117,18 @@ it('documents a BinaryFileResponse as a binary 200', function (): void {
     expect($response)->not->toBeNull()
         ->and($response['content']['application/octet-stream']['schema'])
         ->toBe(['type' => 'string', 'format' => 'binary']);
+});
+
+// Pins the nullable-vs-union asymmetry: `?RedirectResponse` (nullable) stays a single-member
+// shape and IS claimed, but `RedirectResponse|X` written as an explicit union carries more than
+// one contract and is refused.
+it('claims a nullable RedirectResponse (?T is not a union)', function (): void {
+    Route::get('/http/nullable-redirect', [HttpResponseTypeController::class, 'nullableRedirect']);
+
+    $response = httpResponse('/http/nullable-redirect', '302');
+
+    expect($response)->not->toBeNull()
+        ->and($response['headers']['Location']['schema']['format'])->toBe('uri');
 });
 
 it('refuses a union that includes a framework HTTP response type', function (): void {
