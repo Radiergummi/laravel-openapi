@@ -22,13 +22,6 @@ use function in_array;
  */
 final readonly class SingleReturnArrayLiteralFinder
 {
-    /**
-     * Pathological-input backstop, not a semantic bound: the guard that makes a resolution sound is
-     * "exactly one unconditional return", not how far the scan looked. Set far above ordinary method
-     * length so an everyday run of guard clauses never hides the trailing return.
-     */
-    public const int RETURN_SCAN_STATEMENT_LIMIT = 100;
-
     public function __construct(
         private MethodBodyScanner $scanner,
         private ReturnExpressionResolver $returnExpressionResolver = new ReturnExpressionResolver(),
@@ -36,7 +29,7 @@ final readonly class SingleReturnArrayLiteralFinder
 
     public function find(ReflectionMethod $method): ?Array_
     {
-        $statements = $this->scanner->firstStatements($method, self::RETURN_SCAN_STATEMENT_LIMIT);
+        $statements = $this->scanner->firstStatements($method, ReturnScan::STATEMENT_LIMIT);
 
         if ($statements === []) {
             return null;

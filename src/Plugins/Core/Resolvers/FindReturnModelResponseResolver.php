@@ -23,6 +23,7 @@ use Radiergummi\OpenApi\Support\Extraction\EloquentModelToSchema;
 use Radiergummi\OpenApi\Support\Generator\ComponentSchemaRegistry;
 use Radiergummi\OpenApi\Support\MethodBody\ConditionalContextPolicy;
 use Radiergummi\OpenApi\Support\MethodBody\MethodBodyScanner;
+use Radiergummi\OpenApi\Support\MethodBody\ReturnScan;
 use Radiergummi\OpenApi\Support\MethodBody\StatementNodeFinder;
 use ReflectionMethod;
 use ReflectionNamedType;
@@ -45,13 +46,6 @@ use function sprintf;
 #[Scoped]
 final readonly class FindReturnModelResponseResolver implements PrimaryResponseResolver
 {
-    /**
-     * Pathological-input backstop, not a semantic bound: the guard that makes a match sound is the
-     * directly-returned, unconditional, literal-FQCN lookup call, not how far the scan looked. Set
-     * far above ordinary method length so a run of guard clauses never hides the trailing return.
-     */
-    private const int RETURN_SCAN_STATEMENT_LIMIT = 100;
-
     private const array LOOKUP_METHODS = ['find', 'findorfail', 'firstorfail'];
 
     private StatementNodeFinder $statementNodeFinder;
@@ -74,7 +68,7 @@ final readonly class FindReturnModelResponseResolver implements PrimaryResponseR
             return null;
         }
 
-        $statements = $this->scanner->firstStatements($method, self::RETURN_SCAN_STATEMENT_LIMIT);
+        $statements = $this->scanner->firstStatements($method, ReturnScan::STATEMENT_LIMIT);
 
         if ($statements === []) {
             return null;
