@@ -104,6 +104,37 @@ class FindReturnFixtureController
         return Article::find($id);
     }
 
+    public function twoLookupReturns(string $id, bool $legacy): mixed
+    {
+        if ($legacy) {
+            return Article::find($id);
+        }
+
+        return User::find($id);
+    }
+
+    public function cacheFastPath(string $id, bool $cached): mixed
+    {
+        if ($cached) {
+            return ['cached' => true];
+        }
+
+        return User::find($id);
+    }
+
+    public function closureWithNestedLookup(string $id, bool $legacy): mixed
+    {
+        if ($legacy) {
+            $loader = static function (): mixed {
+                return Article::find(1);
+            };
+
+            return $loader();
+        }
+
+        return User::find($id);
+    }
+
     public function ternary(string $id, bool $flag): mixed
     {
         return $flag ? User::find($id) : null;
@@ -344,6 +375,36 @@ it('resolves a returned find() past the first ten statements', function (): void
 
 it('refuses a returned find() past the hundred-statement backstop', function (): void {
     expect(findReturnResolver()->resolvePrimaryResponse(findReturnDescriptor('findBeyondBackstop')))->toBeNull();
+});
+
+// endregion
+
+// region Ambiguous multiple lookups
+
+it('refuses a method with more than one directly-returned lookup', function (): void {
+    $logger = findReturnRecordingLogger();
+
+    expect(findReturnResolver($logger)->resolvePrimaryResponse(findReturnDescriptor('twoLookupReturns')))->toBeNull()
+        ->and($logger->records)->toHaveCount(1)
+        ->and($logger->records[0]['level'])->toBe('notice');
+});
+
+it('resolves a single lookup coexisting with a non-lookup fast-path return', function (): void {
+    $response = primaryResponseAnnotation(
+        findReturnResolver()->resolvePrimaryResponse(findReturnDescriptor('cacheFastPath')),
+    );
+
+    expect($response)->not->toBeNull()
+        ->and(findReturnRef($response))->toContain('User');
+});
+
+it('counts only method-level returns, ignoring a lookup inside a nested closure', function (): void {
+    $response = primaryResponseAnnotation(
+        findReturnResolver()->resolvePrimaryResponse(findReturnDescriptor('closureWithNestedLookup')),
+    );
+
+    expect($response)->not->toBeNull()
+        ->and(findReturnRef($response))->toContain('User');
 });
 
 // endregion
