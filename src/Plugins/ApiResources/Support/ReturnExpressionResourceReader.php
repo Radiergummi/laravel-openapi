@@ -37,6 +37,7 @@ use Radiergummi\OpenApi\Support\MethodBody\ConditionalContextPolicy;
 use Radiergummi\OpenApi\Support\MethodBody\MethodBodyScanner;
 use Radiergummi\OpenApi\Support\MethodBody\ResponseJsonCall;
 use Radiergummi\OpenApi\Support\MethodBody\ReturnExpressionResolver;
+use Radiergummi\OpenApi\Support\MethodBody\ReturnScan;
 use Radiergummi\OpenApi\Support\MethodBody\ReturnVariableRefusal;
 use Radiergummi\OpenApi\Support\MethodBody\StatementNodeFinder;
 use Radiergummi\OpenApi\Support\MethodBody\VariableRebinding;
@@ -71,7 +72,7 @@ use function sprintf;
  * Consulted by {@see ResourceClassLocator} when the return type alone is insufficient.
  *
  * The `@return` generic wins over the body scan. The scan then matches a narrow whitelist over the
- * method's statements (bounded by {@see self::RETURN_SCAN_STATEMENT_LIMIT}): one unconditional
+ * method's statements (bounded by {@see ReturnScan::STATEMENT_LIMIT}): one unconditional
  * return (or the variable it names, assigned exactly once on the unconditional path), or several
  * top-level returns that all resolve to the same resource (bare `return;` / `return null;`
  * ignored), unwrapped through resource-preserving chains (`->additional(...)`) and out of a
@@ -89,13 +90,6 @@ use function sprintf;
 #[Scoped]
 final class ReturnExpressionResourceReader
 {
-    /**
-     * Pathological-input backstop, not a semantic bound: the guard that makes a resolution sound is
-     * "exactly one unconditional return", not how far the scan looked. Set far above ordinary method
-     * length so an everyday run of guard clauses never hides the trailing return.
-     */
-    private const int RETURN_SCAN_STATEMENT_LIMIT = 100;
-
     /**
      * Chain methods that change neither the resource class nor the response cardinality.
      * Any other link may transform the response, so the scan refuses it.
@@ -224,7 +218,7 @@ final class ReturnExpressionResourceReader
             return $documented;
         }
 
-        $statements = $this->scanner->firstStatements($method, self::RETURN_SCAN_STATEMENT_LIMIT);
+        $statements = $this->scanner->firstStatements($method, ReturnScan::STATEMENT_LIMIT);
 
         [$this->resolutionStatements, $this->resolutionReturnIndex] = [
             $statements,
@@ -409,7 +403,7 @@ final class ReturnExpressionResourceReader
      */
     private function paginatedFromBody(ReflectionMethod $method): bool
     {
-        $statements = $this->scanner->firstStatements($method, self::RETURN_SCAN_STATEMENT_LIMIT);
+        $statements = $this->scanner->firstStatements($method, ReturnScan::STATEMENT_LIMIT);
         $returnExpression = $this->canonicalReturnExpression($statements, $method, log: false);
 
         if ($returnExpression === null) {
@@ -1107,7 +1101,7 @@ final class ReturnExpressionResourceReader
             return null;
         }
 
-        $statements = $this->scanner->firstStatements($callee, self::RETURN_SCAN_STATEMENT_LIMIT);
+        $statements = $this->scanner->firstStatements($callee, ReturnScan::STATEMENT_LIMIT);
         $returns = $this->methodLevelReturns($statements);
 
         if (count($returns) !== 1 || $returns[0]->expr === null) {

@@ -16,6 +16,7 @@ use Radiergummi\OpenApi\Support\MethodBody\ConditionalContextPolicy;
 use Radiergummi\OpenApi\Support\MethodBody\MethodBodyScanner;
 use Radiergummi\OpenApi\Support\MethodBody\NonLiteralValueException;
 use Radiergummi\OpenApi\Support\MethodBody\ReturnExpressionResolver;
+use Radiergummi\OpenApi\Support\MethodBody\ReturnScan;
 use Radiergummi\OpenApi\Support\MethodBody\RuleFieldLiteralMapper;
 use Radiergummi\OpenApi\Support\MethodBody\SingleReturnArrayLiteralFinder;
 use Radiergummi\OpenApi\Support\MethodBody\StatementNodeFinder;
@@ -31,7 +32,7 @@ use function is_string;
  * from the method body, as a fallback for when invoking `rules()` throws on runtime state.
  *
  * Matches two whitelisted shapes, scanning the method up to a
- * {@see self::RETURN_SCAN_STATEMENT_LIMIT}-statement backstop for its single return: a bare
+ * {@see ReturnScan::STATEMENT_LIMIT}-statement backstop for its single return: a bare
  * `return [ … ];` and a `$rules = [ … ]; … return $rules;` variable return. Conditional
  * `$rules[…] = …` tweaks are ignored: the base literal entries are never-wrong, and overriding
  * them would be a guess. A value-replacing rebinding of the returned variable (a reassignment,
@@ -43,8 +44,6 @@ use function is_string;
 #[Scoped]
 final readonly class FormRequestStaticRulesReader
 {
-    public const int RETURN_SCAN_STATEMENT_LIMIT = SingleReturnArrayLiteralFinder::RETURN_SCAN_STATEMENT_LIMIT;
-
     private SingleReturnArrayLiteralFinder $bareReturnFinder;
 
     private StatementNodeFinder $statementNodeFinder;
@@ -84,7 +83,7 @@ final readonly class FormRequestStaticRulesReader
      */
     private function variableReturnLiteral(ReflectionMethod $method): ?Array_
     {
-        $statements = $this->scanner->firstStatements($method, self::RETURN_SCAN_STATEMENT_LIMIT);
+        $statements = $this->scanner->firstStatements($method, ReturnScan::STATEMENT_LIMIT);
 
         if ($statements === []) {
             return null;

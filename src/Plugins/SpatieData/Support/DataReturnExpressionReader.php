@@ -15,6 +15,7 @@ use PhpParser\Node\Stmt;
 use PhpParser\Node\Stmt\Return_;
 use Radiergummi\OpenApi\Support\MethodBody\MethodBodyScanner;
 use Radiergummi\OpenApi\Support\MethodBody\ReturnExpressionResolver;
+use Radiergummi\OpenApi\Support\MethodBody\ReturnScan;
 use ReflectionMethod;
 use Spatie\LaravelData\Data;
 
@@ -27,7 +28,7 @@ use function is_a;
  * Recovers the concrete Spatie {@see Data} class an action returns when its signature names only a
  * generic container (`Collection`, `array`, …). Consulted by `DataResponseResolver` as a fallback.
  *
- * Bounded scan of the method's statements (capped by {@see self::RETURN_SCAN_STATEMENT_LIMIT}):
+ * Bounded scan of the method's statements (capped by {@see ReturnScan::STATEMENT_LIMIT}):
  * one unconditional return (or the variable it names, assigned exactly once on the unconditional
  * path and never mutated after), matched against two literal-class shapes:
  * `DataClass::collect(...)` (collection) and `new DataClass(...)` (single). Anything else, or a
@@ -38,14 +39,6 @@ use function is_a;
 #[Scoped]
 final class DataReturnExpressionReader
 {
-    /**
-     * Pathological-input backstop, not a semantic bound: the guard that makes a resolution sound is
-     * "exactly one unconditional return", not how far the scan looked. Set far above ordinary method
-     * length so an everyday run of guard clauses never hides the trailing return, and so the
-     * method-level return count is taken over the whole body rather than a truncated prefix.
-     */
-    private const int RETURN_SCAN_STATEMENT_LIMIT = 100;
-
     /**
      * Memoised per `Class::method`.
      *
@@ -76,7 +69,7 @@ final class DataReturnExpressionReader
 
     private function resolve(ReflectionMethod $method): ?DataReturnTarget
     {
-        $statements = $this->scanner->firstStatements($method, self::RETURN_SCAN_STATEMENT_LIMIT);
+        $statements = $this->scanner->firstStatements($method, ReturnScan::STATEMENT_LIMIT);
         $returnExpression = $this->canonicalReturnExpression($statements);
 
         if ($returnExpression === null) {
