@@ -11,8 +11,10 @@ use OpenApi\Annotations as OA;
 use PhpParser\Node\Arg;
 use PhpParser\Node\Expr;
 use PhpParser\Node\Expr\Array_;
+use PhpParser\Node\Expr\ConstFetch;
 use PhpParser\Node\Expr\MethodCall;
 use PhpParser\Node\Expr\New_;
+use PhpParser\Node\Expr\NullsafeMethodCall;
 use PhpParser\Node\Expr\PropertyFetch;
 use PhpParser\Node\Expr\StaticCall;
 use PhpParser\Node\Expr\Variable;
@@ -32,10 +34,12 @@ use ReflectionNamedType;
 
 use function array_key_exists;
 use function class_exists;
+use function in_array;
 use function is_a;
 use function is_int;
 use function is_string;
 use function method_exists;
+use function Radiergummi\OpenApi\is_defined;
 use function str_starts_with;
 
 /**
@@ -64,6 +68,52 @@ final class ResourceToArrayReader
     private const string MERGE = 'merge';
 
     private const string MERGE_WHEN = 'mergeWhen';
+
+    private const string FORMAT = 'format';
+
+    /** The model-attribute formats that make a `->format()` receiver provably a date. */
+    private const array DATE_LIKE_FORMATS = ['date', 'date-time'];
+
+    /**
+     * PHP's own `DATE_*` constants and their values. Resolving them from a closed map rather than
+     * `defined()` keeps the emitted schema independent of which of the app's constant files
+     * happen to be loaded: an app-defined `DATE_…` global must never change what is generated.
+     *
+     * @var array<string, string>
+     */
+    private const array DATE_CONSTANT_VALUES = [
+        'DATE_ATOM' => 'Y-m-d\TH:i:sP',
+        'DATE_COOKIE' => 'l, d-M-Y H:i:s T',
+        'DATE_ISO8601' => 'Y-m-d\TH:i:sO',
+        'DATE_ISO8601_EXPANDED' => 'X-m-d\TH:i:sP',
+        'DATE_RFC822' => 'D, d M y H:i:s O',
+        'DATE_RFC850' => 'l, d-M-y H:i:s T',
+        'DATE_RFC1036' => 'D, d M y H:i:s O',
+        'DATE_RFC1123' => 'D, d M Y H:i:s O',
+        'DATE_RFC2822' => 'D, d M Y H:i:s O',
+        'DATE_RFC3339' => 'Y-m-d\TH:i:sP',
+        'DATE_RFC3339_EXTENDED' => 'Y-m-d\TH:i:s.vP',
+        'DATE_RFC7231' => 'D, d M Y H:i:s \G\M\T',
+        'DATE_RSS' => 'D, d M Y H:i:s O',
+        'DATE_W3C' => 'Y-m-d\TH:i:sP',
+    ];
+
+    /**
+     * Format strings that produce RFC3339, the shape OpenAPI's `date-time` promises. Everything
+     * else stays an unrefined `string`: consumers generate parsers from `format`, so claiming a
+     * shape the app does not emit is worse than claiming none.
+     *
+     * @var list<string>
+     */
+    private const array RFC3339_FORMATS = [
+        // DATE_ATOM, DATE_RFC3339, DATE_W3C, DateTimeInterface::ATOM
+        'Y-m-d\TH:i:sP',
+        // DATE_RFC3339_EXTENDED; RFC3339 permits a fractional-second part
+        'Y-m-d\TH:i:s.vP',
+        'c',
+    ];
+
+    private const string DAY_FORMAT = 'Y-m-d';
 
     /**
      * Keyed by `class::method`, since a resource may expose several readable field bags
@@ -354,6 +404,12 @@ final class ResourceToArrayReader
             return $modelProperty;
         }
 
+        $formattedDate = $this->resolveFormattedDate($name, $value, $optional, $resourceClass, $modelClass);
+
+        if ($formattedDate !== null) {
+            return $formattedDate;
+        }
+
         $definition = SchemaDefinitionFromLiteral::fromValue($value);
 
         if ($definition !== []) {
@@ -566,6 +622,98 @@ final class ResourceToArrayReader
         $property->property = $name;
 
         return InferredResourceField::ofProperty($name, required: !$optional, property: $property);
+    }
+
+    /**
+     * Resolves `$this->field->format(...)` on a model attribute the metadata already types as a
+     * date into a string, refined to `date-time` / `date` when the format argument resolves to a
+     * shape OpenAPI names. A non-nullsafe call proves the receiver was present, so the null member
+     * a nullable timestamp carries is dropped; `?->format(...)` keeps it.
+     *
+     * The date evidence is required: `->format()` on anything else is an app method that may
+     * return anything. Only the wrapped *model* answers that question here, never a value object,
+     * whose members are typed by a path this step deliberately stays out of.
+     *
+     * @param class-string<JsonResource> $resourceClass
+     * @param null|class-string<Model>   $modelClass
+     *
+     * @throws ReflectionException
+     */
+    private function resolveFormattedDate(
+        string $name,
+        Expr $value,
+        bool $optional,
+        string $resourceClass,
+        ?string $modelClass,
+    ): ?InferredResourceField {
+        if (!$value instanceof MethodCall && !$value instanceof NullsafeMethodCall) {
+            return null;
+        }
+
+        if (
+            $value->isFirstClassCallable()
+            || !$value->name instanceof Identifier
+            || $value->name->toLowerString() !== self::FORMAT
+        ) {
+            return null;
+        }
+
+        $fieldName = $this->modelFieldName($value->var);
+
+        if ($fieldName === null || $modelClass === null) {
+            return null;
+        }
+
+        $modelProperty = $this->modelToSchema->propertyFor($modelClass, $fieldName);
+
+        if ($modelProperty === null || !in_array($modelProperty->format, self::DATE_LIKE_FORMATS, strict: true)) {
+            return null;
+        }
+
+        $format = $this->formatArgumentValue($value, $resourceClass);
+        $property = new OA\Property([
+            'property' => $name,
+            'type' => $value instanceof NullsafeMethodCall ? ['string', 'null'] : 'string',
+            ...match (true) {
+                in_array($format, self::RFC3339_FORMATS, strict: true) => ['format' => 'date-time'],
+                $format === self::DAY_FORMAT => ['format' => 'date'],
+                default => [],
+            },
+        ]);
+
+        // The attribute's documented prose describes the value, not its serialisation.
+        if (is_defined($modelProperty->description)) {
+            $property->description = $modelProperty->description;
+        }
+
+        return InferredResourceField::ofProperty($name, required: !$optional, property: $property);
+    }
+
+    /**
+     * The literal format string a `format(...)` call was given, or null when the argument is
+     * absent or not resolvable at compile time.
+     *
+     * @param class-string<JsonResource> $resourceClass
+     */
+    private function formatArgumentValue(MethodCall|NullsafeMethodCall $call, string $resourceClass): ?string
+    {
+        $argument = ($call->getArgs()[0] ?? null)?->value;
+
+        if ($argument === null) {
+            return null;
+        }
+
+        if ($argument instanceof ConstFetch) {
+            return self::DATE_CONSTANT_VALUES[$argument->name->toString()] ?? null;
+        }
+
+        try {
+            $format = AstLiteralEvaluator::evaluate($argument, $resourceClass);
+        } catch (NonLiteralValueException) {
+            return null;
+        }
+
+        return is_string($format) ? $format : null;
     }
 
     /**
