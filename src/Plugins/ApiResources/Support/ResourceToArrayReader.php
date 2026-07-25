@@ -681,7 +681,7 @@ final class ResourceToArrayReader
             },
         ]);
 
-        // The attribute's documented prose describes the value, not its serialisation.
+        // The model's documented prose describes the attribute, which is still what this key holds.
         if (is_defined($modelProperty->description)) {
             $property->description = $modelProperty->description;
         }
