@@ -305,6 +305,24 @@ class ReturnExpressionController extends Controller
         return response()->json(NestedAuthorResource::make(Author::query()->firstOrFail()), 202);
     }
 
+    public function jsonWrappedBareAndAuthoredStatuses(bool $flag): JsonResponse
+    {
+        if ($flag) {
+            return response()->json(NestedAuthorResource::make(Author::query()->firstOrFail()), 202);
+        }
+
+        return response()->json(NestedAuthorResource::make(Author::query()->firstOrFail()));
+    }
+
+    public function jsonWrappedAdditionalChain(): JsonResponse
+    {
+        return response()->json(
+            NestedAuthorResource::collection(Author::query()->paginate())
+                ->additional(['meta' => ['generated' => true]]),
+            201,
+        );
+    }
+
     private function authors(): AnonymousResourceCollection
     {
         throw new LogicException('Fixture helper; never invoked.');
@@ -332,6 +350,22 @@ class ConventionalStatusStoreController extends Controller
     public function store(): JsonResponse
     {
         return response()->json(NestedAuthorResource::make(Author::query()->firstOrFail()));
+    }
+}
+
+/**
+ * Fixture controller whose `store()` authors conflicting statuses across its two returns, so the
+ * status claim is dropped and the resourceful-route convention has to fill the gap.
+ */
+class DivergentStatusStoreController extends Controller
+{
+    public function store(bool $flag): JsonResponse
+    {
+        if ($flag) {
+            return response()->json(NestedAuthorResource::make(Author::query()->firstOrFail()), 202);
+        }
+
+        return response()->json(NestedAuthorResource::make(Author::query()->firstOrFail()), 200);
     }
 }
 
@@ -826,6 +860,41 @@ it('falls back to the conventional 200 when several returns author different sta
 
     expect($schema['properties']['data']['$ref'])->toBe('#/components/schemas/NestedAuthorResource')
         ->and(successStatuses($spec['paths']['/json-divergent-statuses']['get']['responses']))->toBe([200]);
+});
+
+it('drops the status claim when one return authors a status and another leaves it bare', function (): void {
+    Route::get('/json-bare-and-authored', [ReturnExpressionController::class, 'jsonWrappedBareAndAuthoredStatuses']);
+
+    $spec = generateSpec();
+    $schema = successSchema($spec, '/json-bare-and-authored');
+
+    // A bare return against an authored one is its own disagreement, not two ints differing. The
+    // authored branch comes first on purpose: the null must be the side being compared.
+    expect($schema['properties']['data']['$ref'])->toBe('#/components/schemas/NestedAuthorResource')
+        ->and(successStatuses($spec['paths']['/json-bare-and-authored']['get']['responses']))->toBe([200]);
+});
+
+it('lets the resourceful-route convention fill the gap when the returns disagree on the status', function (): void {
+    Route::post('/divergent-widgets', [DivergentStatusStoreController::class, 'store']);
+
+    $spec = generateSpec();
+    $schema = successSchema($spec, '/divergent-widgets', '201', 'post');
+
+    // Dropping the claim leaves statusIsExplicit false, so the convention supplies 201 and the
+    // resource survives: the operation degrades its status claim without losing information.
+    expect($schema['properties']['data']['$ref'])->toBe('#/components/schemas/NestedAuthorResource')
+        ->and(successStatuses($spec['paths']['/divergent-widgets']['post']['responses']))->toBe([201]);
+});
+
+it('carries the authored status through a whitelisted ->additional() chain', function (): void {
+    Route::get('/json-additional-chain', [ReturnExpressionController::class, 'jsonWrappedAdditionalChain']);
+
+    $spec = generateSpec();
+    $schema = successSchema($spec, '/json-additional-chain', '201');
+
+    expect($schema['properties'])->toHaveKeys(['data', 'links', 'meta'])
+        ->and($schema['properties']['data']['items']['$ref'])->toBe('#/components/schemas/NestedAuthorResource')
+        ->and(successStatuses($spec['paths']['/json-additional-chain']['get']['responses']))->toBe([201]);
 });
 
 it('pins the known defect that a non-2xx wrapper status leaves a phantom 200 behind (#584)', function (): void {
