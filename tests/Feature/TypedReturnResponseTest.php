@@ -419,10 +419,13 @@ it('does not emit response.no-success for a never return, with or without inferr
 it('lets an explicit 2xx #[Response] win over never suppression', function (): void {
     Route::get('/typed/never-explicit', [TypedReturnController::class, 'neverWithResponseAttribute']);
 
-    $response = generateSpec()['paths']['/typed/never-explicit']['get']['responses']['200'] ?? null;
+    $responses = generateSpec()['paths']['/typed/never-explicit']['get']['responses'] ?? [];
 
-    expect($response)->not->toBeNull()
-        ->and($response['description'])->toBe('OK');
+    // The override is a real success response, so the floor must not add its catch-all on top:
+    // the action is no longer documenting an absent outcome.
+    expect($responses['200'] ?? null)->not->toBeNull()
+        ->and($responses['200']['description'])->toBe('OK')
+        ->and($responses)->not->toHaveKey('default');
 });
 
 it('keeps the default floor when a never action carries a non-2xx #[Response]', function (): void {
