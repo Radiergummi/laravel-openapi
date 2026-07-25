@@ -40,6 +40,7 @@ class FormattedDateResource extends JsonResource
             'expanded_iso' => $this->published_at->format(DATE_ISO8601_EXPANDED),
             'dynamic_format' => $this->published_at->format($request->dateFormat),
             'nullsafe_atom' => $this->updated_at?->format(DATE_ATOM),
+            'conditional_atom' => $this->when(true, $this->published_at->format(DATE_ATOM)),
             'formatted_string' => $this->summary->format(DATE_ATOM),
             'formatted_unknown' => $this->missing_column->format(DATE_ATOM),
             'formatted_relation' => $this->parent->published_at->format(DATE_ATOM),

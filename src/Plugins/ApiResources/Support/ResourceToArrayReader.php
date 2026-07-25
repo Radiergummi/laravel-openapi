@@ -697,6 +697,8 @@ final class ResourceToArrayReader
      */
     private function formatArgumentValue(MethodCall|NullsafeMethodCall $call, string $resourceClass): ?string
     {
+        // Read positionally rather than through CallArgumentResolver: format() declares a single
+        // parameter, so the named form `format(format: …)` lands at position 0 as well.
         $argument = ($call->getArgs()[0] ?? null)?->value;
 
         if ($argument === null) {

@@ -64,6 +64,20 @@ it('types an RFC3339 ->format() on a date attribute as a date-time string', func
         ->and($properties['rfc3339_extended'])->toMatchArray(['type' => 'string', 'format' => 'date-time']);
 });
 
+it('types a ->format() wrapped in a conditional and leaves the key optional', function (): void {
+    Route::get('/dates', [DateFormatInferenceController::class, 'formatted']);
+
+    $schema = generateSpec()['components']['schemas']['FormattedDateResource'];
+
+    // The conditional wrapper resolves its value argument through the same step, so the refinement
+    // composes; the key stays out of `required` because presence is runtime-decided.
+    expect($schema['properties']['conditional_atom'])->toMatchArray([
+        'type' => 'string',
+        'format' => 'date-time',
+    ])
+        ->and($schema['required'])->not->toContain('conditional_atom');
+});
+
 it("types a 'Y-m-d' ->format() as a date string", function (): void {
     $properties = formattedDateProperties('/dates', 'formatted', 'FormattedDateResource');
 
