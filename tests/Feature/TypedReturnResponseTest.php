@@ -167,7 +167,13 @@ class TypedReturnController extends Controller
         throw new LogicException('Signature-only fixture; never invoked.');
     }
 
-    // A resourceful action name on a matching verb, so a convention status (204) would apply —
+    #[Response(status: 404, description: 'Not found')]
+    public function neverWithErrorResponseAttribute(): never
+    {
+        throw new LogicException('Signature-only fixture; never invoked.');
+    }
+
+    // A resourceful action name on a matching verb, so a convention status (204) would apply,
     // proving suppression skips the convention branch instead of crashing on a null primary.
     public function destroy(): never
     {
@@ -364,7 +370,7 @@ it('suppresses the synthetic 200 for a never return, documenting a default respo
 
     $responses = generateSpec()['paths']['/typed/never']['get']['responses'] ?? [];
 
-    // The action cannot succeed, so no 2xx is documented (and no synthetic empty 200) — the
+    // The action cannot succeed, so no 2xx is documented (and no synthetic empty 200); the
     // catch-all default carries the outcome so the operation still documents a response.
     $successStatuses = array_filter(
         array_keys($responses),
@@ -417,6 +423,18 @@ it('lets an explicit 2xx #[Response] win over never suppression', function (): v
 
     expect($response)->not->toBeNull()
         ->and($response['description'])->toBe('OK');
+});
+
+it('keeps the default floor when a never action carries a non-2xx #[Response]', function (): void {
+    Route::get('/typed/never-error-attribute', [TypedReturnController::class, 'neverWithErrorResponseAttribute']);
+
+    $responses = generateSpec()['paths']['/typed/never-error-attribute']['get']['responses'] ?? [];
+
+    // Only a 2xx attribute overrides the primary, so a documented 404 leaves the action suppressed:
+    // it still has no success response, and the floor documents that.
+    expect($responses)->toHaveKey('default')
+        ->and($responses)->toHaveKey('404')
+        ->and($responses)->not->toHaveKey('200');
 });
 
 it('does not emit operation.return-type-missing for a never return (suppression is intentional)', function (): void {

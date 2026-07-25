@@ -26,8 +26,10 @@ use function sprintf;
  * Reads a framework HTTP response type from a controller's declared return, where the return type
  * alone carries the whole response contract (Tier-0, no body parsing):
  *
- * - `RedirectResponse` → `302 Found` with a `Location` response header.
- * - `StreamedResponse` / `BinaryFileResponse` → a binary `200` (`application/octet-stream`).
+ * - `RedirectResponse` → `302 Found` with a `Location` response header. The status is explicit: a
+ *   redirect is 3xx by definition, so a route convention must not overwrite it.
+ * - `StreamedResponse` / `BinaryFileResponse` → a binary `200` (`application/octet-stream`). Only
+ *   the media type is type-derived; the status stays open to the route convention.
  *
  * App subclasses match (`is_a(..., allow_string: true)`). A union return carries more than one
  * contract, so it is refused and left to degrade. Runs ahead of the baseline
@@ -69,13 +71,18 @@ final readonly class HttpResponseTypeResolver implements PrimaryResponseResolver
         // Deliberately bound to Illuminate's RedirectResponse, the type Laravel controllers declare;
         // a bare Symfony RedirectResponse return is left to degrade like any other unknown class.
         if (is_a($className, RedirectResponse::class, allow_string: true)) {
-            return PrimaryResponse::of($this->redirectResponse());
+            // The status is read from the type itself (a redirect response is 3xx by definition), so
+            // the route convention must not rewrite it to its 200/201/204 and drop the Location.
+            return PrimaryResponse::of($this->redirectResponse(), statusIsExplicit: true);
         }
 
         if (
             is_a($className, StreamedResponse::class, allow_string: true)
             || is_a($className, BinaryFileResponse::class, allow_string: true)
         ) {
+            // Only the media type is type-derived here: a streamed response carries any status, so
+            // the 200 is a fallback the route convention may still promote (a `store()` streaming
+            // its result is a 201). A 204 convention keeps yielding to this content-bearing body.
             return PrimaryResponse::of($this->binaryResponse());
         }
 

@@ -10,6 +10,8 @@ use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\Route;
 use LogicException;
 use Radiergummi\OpenApi\Attributes\Response;
+use Radiergummi\OpenApi\Lint\LintOptions;
+use Radiergummi\OpenApi\Lint\LintRunner;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\HttpFoundation\Response as SymfonyResponse;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -68,9 +70,52 @@ class HttpResponseTypeController extends Controller
     }
 }
 
+/** Resourceful action names, so the route convention resolves a success status for each verb. */
+class RedirectResourceController extends Controller
+{
+    public function store(): RedirectResponse
+    {
+        throw new LogicException('Signature-only fixture; never invoked.');
+    }
+
+    public function update(): RedirectResponse
+    {
+        throw new LogicException('Signature-only fixture; never invoked.');
+    }
+
+    public function destroy(): RedirectResponse
+    {
+        throw new LogicException('Signature-only fixture; never invoked.');
+    }
+}
+
+class StreamedResourceController extends Controller
+{
+    public function store(): StreamedResponse
+    {
+        throw new LogicException('Signature-only fixture; never invoked.');
+    }
+
+    public function update(): StreamedResponse
+    {
+        throw new LogicException('Signature-only fixture; never invoked.');
+    }
+
+    public function destroy(): StreamedResponse
+    {
+        throw new LogicException('Signature-only fixture; never invoked.');
+    }
+}
+
 function httpResponse(string $uri, string $status): mixed
 {
     return generateSpec()['paths'][$uri]['get']['responses'][$status] ?? null;
+}
+
+/** Every response of one operation, keyed by status, for the verbs the sibling helper cannot reach. */
+function httpResponses(string $uri, string $verb): mixed
+{
+    return generateSpec()['paths'][$uri][$verb]['responses'] ?? [];
 }
 
 it('documents a RedirectResponse as a 302 with a Location header', function (): void {
@@ -151,6 +196,57 @@ it('lets an explicit #[Response] win over the binary 200', function (): void {
         ->and($response['description'])->toBe('A JSON payload')
         ->and($response['content'])->toHaveKey('application/json')
         ->and($response['content'])->not->toHaveKey('application/octet-stream');
+});
+
+it(
+    'keeps the 302 and its Location header on a resourceful action, over the convention status',
+    function (string $action, string $verb, string $uri): void {
+        Route::{$verb}($uri, [RedirectResourceController::class, $action]);
+
+        $responses = httpResponses($uri, $verb);
+
+        // The convention would rewrite the status (201/200/204) and, for destroy, discard the
+        // Location with it; the type-derived 302 outranks it.
+        expect($responses)->toHaveKey('302')
+            ->and($responses)->not->toHaveKey('201')
+            ->and($responses)->not->toHaveKey('204')
+            ->and($responses['302']['headers']['Location']['schema']['format'])->toBe('uri');
+    },
+)->with([
+    'store (201 convention)' => ['store', 'post', '/http/redirect-resource'],
+    'update (200 convention)' => ['update', 'put', '/http/redirect-resource/{id}'],
+    'destroy (204 convention)' => ['destroy', 'delete', '/http/redirect-resource/{id}/delete'],
+]);
+
+it(
+    'lets the route convention promote the binary status, keeping the octet-stream body',
+    function (string $action, string $verb, string $uri, string $expectedStatus): void {
+        Route::{$verb}($uri, [StreamedResourceController::class, $action]);
+
+        $responses = httpResponses($uri, $verb);
+
+        // The binary 200 is a fallback, not a status read from the action, so a store() streaming
+        // its result is a 201. A destroy() keeps the 200: the 204 convention yields to a body.
+        expect($responses)->toHaveKey($expectedStatus)
+            ->and($responses[$expectedStatus]['content']['application/octet-stream']['schema'])
+            ->toBe(['type' => 'string', 'format' => 'binary']);
+    },
+)->with([
+    'store promotes to 201' => ['store', 'post', '/http/stream-resource', '201'],
+    'update stays 200' => ['update', 'put', '/http/stream-resource/{id}', '200'],
+    'destroy keeps the body over the 204' => ['destroy', 'delete', '/http/stream-resource/{id}/delete', '200'],
+]);
+
+it('does not emit response.no-success for a redirect-only operation', function (): void {
+    Route::get('/http/redirect-lint', [HttpResponseTypeController::class, 'redirect']);
+    app()->forgetScopedInstances();
+
+    $result = app(LintRunner::class)->run(new LintOptions(
+        only: ['response.no-success'],
+        uriGlob: 'http/redirect-lint',
+    ));
+
+    expect($result->findings)->toBe([]);
 });
 
 it('does not claim a JsonResponse or a bare Response return', function (string $method, string $uri): void {
