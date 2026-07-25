@@ -8,6 +8,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Http\Resources\Json\ResourceCollection;
+use Illuminate\Http\Response;
 use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\Route;
 use LogicException;
@@ -23,6 +24,11 @@ use Radiergummi\OpenApi\Tests\Support\ActionDescriptorFactory;
 use Radiergummi\OpenApi\Tests\Support\OperationNodeFactory;
 
 use function array_any;
+use function array_filter;
+use function array_keys;
+use function array_map;
+use function array_values;
+use function intval;
 use function iterator_to_array;
 use function random_int;
 use function str_contains;
@@ -36,6 +42,9 @@ uses()->group('openapi', 'plugin:api-resources');
  */
 class ReturnExpressionController extends Controller
 {
+    /** An app-defined status constant, referenced as `self::ACCEPTED` by one of the actions. */
+    public const int ACCEPTED = 202;
+
     public function paginatedCollection(): AnonymousResourceCollection
     {
         return NestedAuthorResource::collection(Author::query()->paginate());
@@ -244,9 +253,85 @@ class ReturnExpressionController extends Controller
         return response()->json($payload, 201);
     }
 
+    public function jsonWrappedNoStatus(): JsonResponse
+    {
+        return response()->json(NestedAuthorResource::make(Author::query()->firstOrFail()));
+    }
+
+    public function jsonWrappedNamedStatus(): JsonResponse
+    {
+        return response()->json(
+            data: NestedAuthorResource::make(Author::query()->firstOrFail()),
+            status: 202,
+        );
+    }
+
+    public function jsonWrappedConstantStatus(): JsonResponse
+    {
+        return response()->json(
+            NestedAuthorResource::make(Author::query()->firstOrFail()),
+            Response::HTTP_ACCEPTED,
+        );
+    }
+
+    public function jsonWrappedSelfConstantStatus(): JsonResponse
+    {
+        return response()->json(NestedAuthorResource::make(Author::query()->firstOrFail()), self::ACCEPTED);
+    }
+
+    public function jsonWrappedNonLiteralStatus(): JsonResponse
+    {
+        $status = random_int(200, 202);
+
+        return response()->json(NestedAuthorResource::make(Author::query()->firstOrFail()), $status);
+    }
+
+    public function jsonWrappedForbiddenStatus(): JsonResponse
+    {
+        return response()->json(NestedAuthorResource::make(Author::query()->firstOrFail()), 403);
+    }
+
+    public function jsonWrappedNoContentStatus(): JsonResponse
+    {
+        return response()->json(NestedAuthorResource::make(Author::query()->firstOrFail()), 204);
+    }
+
+    public function jsonWrappedDivergentStatuses(bool $flag): JsonResponse
+    {
+        if ($flag) {
+            return response()->json(NestedAuthorResource::make(Author::query()->firstOrFail()), 201);
+        }
+
+        return response()->json(NestedAuthorResource::make(Author::query()->firstOrFail()), 202);
+    }
+
     private function authors(): AnonymousResourceCollection
     {
         throw new LogicException('Fixture helper; never invoked.');
+    }
+}
+
+/**
+ * Fixture controller whose `store()` authors its own status, so the authored value and the
+ * resourceful-route convention's 201 disagree.
+ */
+class AuthoredStatusStoreController extends Controller
+{
+    public function store(): JsonResponse
+    {
+        return response()->json(NestedAuthorResource::make(Author::query()->firstOrFail()), 202);
+    }
+}
+
+/**
+ * Fixture controller whose `store()` authors no status, so the resourceful-route convention's 201
+ * must still apply.
+ */
+class ConventionalStatusStoreController extends Controller
+{
+    public function store(): JsonResponse
+    {
+        return response()->json(NestedAuthorResource::make(Author::query()->firstOrFail()));
     }
 }
 
@@ -255,13 +340,31 @@ class ReturnExpressionController extends Controller
  *
  * @return array<string, mixed>
  */
-function successSchema(array $spec, string $path): array
+function successSchema(array $spec, string $path, string $status = '200', string $verb = 'get'): array
 {
-    $schema = $spec['paths'][$path]['get']['responses']['200']['content']['application/json']['schema'] ?? null;
+    $schema = $spec['paths'][$path][$verb]['responses'][$status]['content']['application/json']['schema'] ?? null;
 
     expect($schema)->not->toBeNull();
 
     return $schema;
+}
+
+/**
+ * The 2xx statuses an operation documents, so a test can pin that exactly one success response
+ * exists rather than only that the expected one is present.
+ *
+ * @param array<int|string, mixed> $responses
+ *
+ * @return list<int>
+ */
+function successStatuses(array $responses): array
+{
+    $statuses = array_map(intval(...), array_keys($responses));
+
+    return array_values(array_filter(
+        $statuses,
+        static fn(int $status): bool => $status >= 200 && $status < 300,
+    ));
 }
 
 // region Collection shapes
@@ -637,27 +740,147 @@ it('still flags resource.response-ambiguous for an unresolvable collection', fun
 
 // region response()->json(<resource>) unwrapping
 
-it('resolves a resource wrapped in response()->json(X::make(...), status)', function (): void {
+it('documents a resource wrapped in response()->json(X::make(...), 201) under the authored 201', function (): void {
     Route::get('/json-single', [ReturnExpressionController::class, 'jsonWrappedSingle']);
 
     $spec = generateSpec();
     $responses = $spec['paths']['/json-single']['get']['responses'];
-    $schema = successSchema($spec, '/json-single');
+    $schema = successSchema($spec, '/json-single', '201');
 
     // The resource $ref wins over the empty inline-JSON shape; only one 2xx is emitted.
     expect($schema['properties']['data']['$ref'])->toBe('#/components/schemas/NestedAuthorResource')
         ->and($spec['components']['schemas']['NestedAuthorResource']['properties'])->toHaveKeys(['id', 'name'])
-        ->and($responses)->not->toHaveKey('201');
+        ->and(successStatuses($responses))->toBe([201]);
 });
 
-it('resolves a collection wrapped in response()->json(X::collection(...), status)', function (): void {
+it('documents a collection wrapped in response()->json(X::collection(...), 201) under the authored 201', function (): void {
     Route::get('/json-collection', [ReturnExpressionController::class, 'jsonWrappedCollection']);
 
-    $schema = successSchema(generateSpec(), '/json-collection');
+    $spec = generateSpec();
+    $schema = successSchema($spec, '/json-collection', '201');
 
     expect($schema['properties'])->toHaveKeys(['data', 'links', 'meta'])
         ->and($schema['properties']['data']['type'])->toBe('array')
-        ->and($schema['properties']['data']['items']['$ref'])->toBe('#/components/schemas/NestedAuthorResource');
+        ->and($schema['properties']['data']['items']['$ref'])->toBe('#/components/schemas/NestedAuthorResource')
+        ->and(successStatuses($spec['paths']['/json-collection']['get']['responses']))->toBe([201]);
+});
+
+it('keeps the conventional 200 when the response()->json() wrapper authors no status', function (): void {
+    Route::get('/json-no-status', [ReturnExpressionController::class, 'jsonWrappedNoStatus']);
+
+    $spec = generateSpec();
+    $schema = successSchema($spec, '/json-no-status');
+
+    expect($schema['properties']['data']['$ref'])->toBe('#/components/schemas/NestedAuthorResource')
+        ->and(successStatuses($spec['paths']['/json-no-status']['get']['responses']))->toBe([200]);
+});
+
+it('reads a named status: argument on the response()->json() wrapper', function (): void {
+    Route::get('/json-named-status', [ReturnExpressionController::class, 'jsonWrappedNamedStatus']);
+
+    $spec = generateSpec();
+    $schema = successSchema($spec, '/json-named-status', '202');
+
+    expect($schema['properties']['data']['$ref'])->toBe('#/components/schemas/NestedAuthorResource')
+        ->and(successStatuses($spec['paths']['/json-named-status']['get']['responses']))->toBe([202]);
+});
+
+it('resolves a class-constant status on the response()->json() wrapper', function (): void {
+    Route::get('/json-constant-status', [ReturnExpressionController::class, 'jsonWrappedConstantStatus']);
+
+    $spec = generateSpec();
+    $schema = successSchema($spec, '/json-constant-status', '202');
+
+    expect($schema['properties']['data']['$ref'])->toBe('#/components/schemas/NestedAuthorResource')
+        ->and(successStatuses($spec['paths']['/json-constant-status']['get']['responses']))->toBe([202]);
+});
+
+it('degrades to the conventional 200 when the wrapper status is not statically readable', function (): void {
+    Route::get('/json-dynamic-status', [ReturnExpressionController::class, 'jsonWrappedNonLiteralStatus']);
+
+    $spec = generateSpec();
+    $schema = successSchema($spec, '/json-dynamic-status');
+
+    // The unreadable status must not cost the resource its schema.
+    expect($schema['properties']['data']['$ref'])->toBe('#/components/schemas/NestedAuthorResource')
+        ->and(successStatuses($spec['paths']['/json-dynamic-status']['get']['responses']))->toBe([200]);
+});
+
+it('pins the self:: limitation shared with the literal-body reader: the status stays unread', function (): void {
+    Route::get('/json-self-constant-status', [ReturnExpressionController::class, 'jsonWrappedSelfConstantStatus']);
+
+    $spec = generateSpec();
+    $schema = successSchema($spec, '/json-self-constant-status');
+
+    // `self::` is deliberately not resolved here, matching the literal-body reader; lifting the
+    // limitation belongs in one change across both, not as a divergence.
+    expect($schema['properties']['data']['$ref'])->toBe('#/components/schemas/NestedAuthorResource')
+        ->and(successStatuses($spec['paths']['/json-self-constant-status']['get']['responses']))->toBe([200]);
+});
+
+it('falls back to the conventional 200 when several returns author different statuses', function (): void {
+    Route::get('/json-divergent-statuses', [ReturnExpressionController::class, 'jsonWrappedDivergentStatuses']);
+
+    $spec = generateSpec();
+    $schema = successSchema($spec, '/json-divergent-statuses');
+
+    expect($schema['properties']['data']['$ref'])->toBe('#/components/schemas/NestedAuthorResource')
+        ->and(successStatuses($spec['paths']['/json-divergent-statuses']['get']['responses']))->toBe([200]);
+});
+
+it('pins the known defect that a non-2xx wrapper status leaves a phantom 200 behind (#584)', function (): void {
+    Route::get('/json-forbidden-status', [ReturnExpressionController::class, 'jsonWrappedForbiddenStatus']);
+
+    $spec = generateSpec();
+    $responses = $spec['paths']['/json-forbidden-status']['get']['responses'];
+
+    // Today's output, not the desired one: the 200 claims a success the action never returns,
+    // alongside the real 403. #584 owns the fix; this test exists so it changes deliberately.
+    expect($responses)->toHaveKeys(['200', '403'])
+        ->and($responses['200']['content']['application/json']['schema']['properties']['data']['$ref'])
+        ->toBe('#/components/schemas/NestedAuthorResource');
+});
+
+it('leaves a 204 wrapper status to the inline-JSON reader, which documents it without a body', function (): void {
+    Route::get('/json-no-content-status', [ReturnExpressionController::class, 'jsonWrappedNoContentStatus']);
+
+    $spec = generateSpec();
+    $responses = $spec['paths']['/json-no-content-status']['get']['responses'];
+
+    // Core claims the call before the resource path sees it, so no envelope is attached at all.
+    expect(successStatuses($responses))->toBe([204])
+        ->and($responses['204'])->not->toHaveKey('content')
+        ->and($spec['components']['schemas'] ?? [])->not->toHaveKey('NestedAuthorResource');
+});
+
+it('lets an authored wrapper status win over the resourceful-route convention', function (): void {
+    Route::post('/authored-widgets', [AuthoredStatusStoreController::class, 'store']);
+
+    $spec = generateSpec();
+    $schema = successSchema($spec, '/authored-widgets', '202', 'post');
+
+    expect($schema['properties']['data']['$ref'])->toBe('#/components/schemas/NestedAuthorResource')
+        ->and(successStatuses($spec['paths']['/authored-widgets']['post']['responses']))->toBe([202]);
+});
+
+it('keeps the resourceful-route convention when the wrapper authors no status', function (): void {
+    Route::post('/conventional-widgets', [ConventionalStatusStoreController::class, 'store']);
+
+    $spec = generateSpec();
+    $schema = successSchema($spec, '/conventional-widgets', '201', 'post');
+
+    expect($schema['properties']['data']['$ref'])->toBe('#/components/schemas/NestedAuthorResource')
+        ->and(successStatuses($spec['paths']['/conventional-widgets']['post']['responses']))->toBe([201]);
+});
+
+it('leaves the resource paths that carry no wrapper on their conventional status', function (): void {
+    Route::get('/author-typed', [ReturnExpressionController::class, 'staticMake']);
+    Route::get('/author-attributed', [ReturnExpressionController::class, 'attributeWins']);
+
+    $spec = generateSpec();
+
+    expect(successStatuses($spec['paths']['/author-typed']['get']['responses']))->toBe([200])
+        ->and(successStatuses($spec['paths']['/author-attributed']['get']['responses']))->toBe([200]);
 });
 
 it('leaves a non-resource response()->json(...) at the bare 200', function (): void {

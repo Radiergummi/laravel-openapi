@@ -14,8 +14,8 @@ use PhpParser\Node\Name;
 
 /**
  * Matches a `response()->json(<data>, <status>)` helper call in a scanned method body and exposes
- * its data argument. Covers the `response()` helper form only; `new JsonResponse(...)` is a
- * distinct construction handled by its callers. Relies on the scanner's NameResolver so the
+ * its data and status arguments. Covers the `response()` helper form only; `new JsonResponse(...)`
+ * is a distinct construction handled by its callers. Relies on the scanner's NameResolver so the
  * helper-shadowing guard ({@see UnqualifiedHelperCall}) can distinguish the global helper from a
  * same-namespace `response()` function.
  *
@@ -23,8 +23,10 @@ use PhpParser\Node\Name;
  */
 final readonly class ResponseJsonCall
 {
-    /** Argument position of the JSON data in `ResponseFactory::json($data = [], $status = 200, …)`. */
+    /** Argument positions in `ResponseFactory::json($data = [], $status = 200, …)`. */
     private const int DATA_ARGUMENT_POSITION = 0;
+
+    private const int STATUS_ARGUMENT_POSITION = 1;
 
     /** Whether the node is a `->json(...)` call on a zero-argument `response()` helper. */
     public static function matches(Node $node): bool
@@ -47,6 +49,19 @@ final readonly class ResponseJsonCall
         }
 
         return CallArgumentResolver::argument($node->getArgs(), 'data', self::DATA_ARGUMENT_POSITION);
+    }
+
+    /**
+     * The status (`status`/second) argument of a matched `response()->json(...)` call, or null when
+     * the node is not that shape or the argument is absent.
+     */
+    public static function statusArgument(Node $node): ?Arg
+    {
+        if (!$node instanceof MethodCall || !self::matches($node)) {
+            return null;
+        }
+
+        return CallArgumentResolver::argument($node->getArgs(), 'status', self::STATUS_ARGUMENT_POSITION);
     }
 
     /**
