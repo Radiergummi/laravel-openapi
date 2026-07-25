@@ -184,7 +184,12 @@ type alone (Tier-0, no body parsing). App subclasses of each are matched too:
 
 - **`never`** — the action cannot complete successfully (it always throws), so it
   has **no** success response: the synthetic `200` is suppressed entirely rather
-  than documented as an empty body. (This suppression is language-level, so it
+  than documented as an empty body. In its place the operation documents the
+  catch-all `default` response ("The action never returns a successful
+  response."), which keeps the operation a valid OpenAPI 3.1 document and tells
+  the `response.no-success` lint rule the missing 2xx is deliberate. Inferred
+  error responses (from `@throws`, auth middleware, route-model binding) are
+  still documented alongside it. (This suppression is language-level, so it
   works with the Core plugin disabled.)
 - **`RedirectResponse`** — a `302 Found` with a `Location` response header
   (`type: string, format: uri`) and no body.

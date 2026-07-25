@@ -66,6 +66,8 @@ final readonly class HttpResponseTypeResolver implements PrimaryResponseResolver
 
         $className = $shape->itemType->getClassName();
 
+        // Deliberately bound to Illuminate's RedirectResponse, the type Laravel controllers declare;
+        // a bare Symfony RedirectResponse return is left to degrade like any other unknown class.
         if (is_a($className, RedirectResponse::class, allow_string: true)) {
             return PrimaryResponse::of($this->redirectResponse());
         }

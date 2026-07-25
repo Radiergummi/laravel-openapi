@@ -17,12 +17,16 @@ use function sprintf;
 
 /**
  * Reports when an operation has responses defined but none of them is a 2xx success response.
+ *
+ * An operation declaring the catch-all `default` response has documented its outcome space on
+ * purpose (a `never`-returning action, say), so it is not underspecified and stays silent.
  */
 final class ResponseNoSuccess implements Rule, OperationRuleVisitor
 {
     public string $id = 'response.no-success';
     public Severity $severity = Severity::Underspecified;
-    public string $description = 'Operation has no 2xx response.';
+    public string $description = 'Operation has no 2xx response. Skipped when the operation declares a '
+        . 'default response, which documents the outcome space deliberately (e.g. a never-returning action).';
 
     /**
      * @return iterable<Finding>

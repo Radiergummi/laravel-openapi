@@ -17,6 +17,7 @@ use Radiergummi\OpenApi\Support\Extraction\TypedReturnResponseResolver;
 use Radiergummi\OpenApi\Support\Generator\BaselineRegistration;
 use Radiergummi\OpenApi\Tests\Fixtures\Enums\ArticleStatus;
 use Radiergummi\OpenApi\Tests\Fixtures\ScalarOnlyData;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 uses()->group('openapi');
 
@@ -150,6 +151,14 @@ class TypedReturnController extends Controller
     public function neverReturn(): never
     {
         throw new LogicException('Signature-only fixture; never invoked.');
+    }
+
+    /**
+     * @throws NotFoundHttpException
+     */
+    public function neverNotFound(): never
+    {
+        throw new NotFoundHttpException('Signature-only fixture; never invoked.');
     }
 
     #[Response(status: 200, description: 'OK')]
@@ -350,18 +359,55 @@ it('wraps a nullable plain-DTO return in the OAS 3.1 nullable idiom', function (
         ->and($schema['oneOf'][1])->toBe(['type' => 'null']);
 });
 
-it('suppresses the synthetic 200 for a never return', function (): void {
+it('suppresses the synthetic 200 for a never return, documenting a default response instead', function (): void {
     Route::get('/typed/never', [TypedReturnController::class, 'neverReturn']);
 
     $responses = generateSpec()['paths']['/typed/never']['get']['responses'] ?? [];
 
-    // The action cannot succeed, so no 2xx is documented (and no synthetic empty 200).
+    // The action cannot succeed, so no 2xx is documented (and no synthetic empty 200) — the
+    // catch-all default carries the outcome so the operation still documents a response.
     $successStatuses = array_filter(
         array_keys($responses),
         static fn(int|string $status): bool => (int) $status >= 200 && (int) $status <= 299,
     );
 
-    expect($successStatuses)->toBe([]);
+    expect($successStatuses)->toBe([])
+        ->and($responses)->toHaveKey('default')
+        ->and($responses['default'])->toBe([
+            'description' => 'The action never returns a successful response.',
+        ]);
+});
+
+it('keeps the inferred error responses alongside the default for a never return', function (): void {
+    Route::get('/typed/never-throws', [TypedReturnController::class, 'neverNotFound']);
+
+    $responses = generateSpec()['paths']['/typed/never-throws']['get']['responses'] ?? [];
+
+    expect($responses)->toHaveKey('default')
+        ->and($responses)->toHaveKey('404')
+        ->and($responses)->not->toHaveKey('200');
+});
+
+it('emits a spec-valid document for a never return', function (): void {
+    Route::get('/typed/never-valid', [TypedReturnController::class, 'neverReturn']);
+    app()->forgetScopedInstances();
+
+    $result = app(LintRunner::class)->run(new LintOptions(only: ['spec.invalid']));
+
+    expect($result->findings)->toBe([]);
+});
+
+it('does not emit response.no-success for a never return, with or without inferred errors', function (): void {
+    Route::get('/typed/never-nosuccess', [TypedReturnController::class, 'neverReturn']);
+    Route::get('/typed/never-nosuccess-throws', [TypedReturnController::class, 'neverNotFound']);
+    app()->forgetScopedInstances();
+
+    $result = app(LintRunner::class)->run(new LintOptions(
+        only: ['response.no-success'],
+        uriGlob: 'typed/never-nosuccess*',
+    ));
+
+    expect($result->findings)->toBe([]);
 });
 
 it('lets an explicit 2xx #[Response] win over never suppression', function (): void {

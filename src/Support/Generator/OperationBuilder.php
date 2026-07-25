@@ -319,9 +319,11 @@ final readonly class OperationBuilder
         }
 
         // Primary 2xx first; ErrorResponseInferenceStage appends errors later, skipping statuses already declared.
+        // A suppressed primary contributes the catch-all `default` instead: an operation must document
+        // at least one response, and `default` is the honest encoding of an action that never succeeds.
         $responses = $primaryResponse !== null
             ? [$primaryResponse, ...$additionalResponses]
-            : $additionalResponses;
+            : [$this->suppressedResponse(), ...$additionalResponses];
         $this->exampleApplier->applyResponseExamples($action, $responses);
         $this->responseHeaderApplier->applyAuthored($action, $responses);
 
@@ -384,6 +386,20 @@ final readonly class OperationBuilder
             externalDocs: $externalDocs,
             provenance: $provenance,
         );
+    }
+
+    /**
+     * The catch-all response documenting an action whose primary response was suppressed.
+     *
+     * Declaring `default` states that the outcome space is deliberate rather than underspecified,
+     * which is why `response.no-success` stays silent on such an operation.
+     */
+    private function suppressedResponse(): OA\Response
+    {
+        return new OA\Response([
+            'response' => 'default',
+            'description' => 'The action never returns a successful response.',
+        ]);
     }
 
     /**
