@@ -192,16 +192,22 @@ type alone (Tier-0, no body parsing). App subclasses of each are matched too:
   still documented alongside it. (This suppression is language-level, so it
   works with the Core plugin disabled.)
 - **`RedirectResponse`** — a `302 Found` with a `Location` response header
-  (`type: string, format: uri`) and no body. A redirect is 3xx by definition, so
-  this status is treated as read from the action: the route convention does not
-  overwrite it, and `store()`/`update()`/`destroy()` actions keep the `302` and
-  its `Location` instead of being rewritten to `201`/`200`/`204`.
+  (`type: string, format: uri`) and no body. The type constrains the status to a
+  redirect status (Symfony rejects anything outside
+  `{201, 301, 302, 303, 307, 308}`), so the conventional `200`/`204` cannot be
+  right: this status is treated as read from the action, and
+  `store()`/`update()`/`destroy()` actions keep the `302` and its `Location`
+  instead of being rewritten to `201`/`200`/`204`. `302` is what `redirect()`
+  produces; an action that redirects with a different status should say so with
+  `#[Response]`, which wins as always. (The one case this trades away is a
+  `store()` returning `new RedirectResponse($url, 201)`, which the convention
+  previously got right by accident.)
 - **`StreamedResponse` / `BinaryFileResponse`** — a binary `200`
   (`application/octet-stream`, `{type: string, format: binary}`). Only the media
-  type is derived from the return here; a streamed response can carry any
-  status, so the route convention may still promote it (`store()` → `201`). A
-  `destroy()` keeps the binary `200` rather than the conventional `204`, which
-  forbids a body.
+  type is derived from the return here; the status is unconstrained (a streamed
+  response accepts any), so the route convention may still promote it
+  (`store()` → `201`). A `destroy()` keeps the binary `200` rather than the
+  conventional `204`, which forbids a body.
 
 A union return that includes any of these carries more than one contract, so it
 is refused and degrades to the prior behaviour (a bare `200`). An explicit
