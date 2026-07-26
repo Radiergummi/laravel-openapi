@@ -8,12 +8,16 @@ use Illuminate\Contracts\Container\Container;
 use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\Route;
 use LogicException;
+use Radiergummi\OpenApi\Attributes\Response;
+use Radiergummi\OpenApi\Lint\LintOptions;
+use Radiergummi\OpenApi\Lint\LintRunner;
 use Radiergummi\OpenApi\Plugins\Core\Envelopes\NoneEnvelope;
 use Radiergummi\OpenApi\Registry\OpenApiRegistry;
 use Radiergummi\OpenApi\Support\Extraction\TypedReturnResponseResolver;
 use Radiergummi\OpenApi\Support\Generator\BaselineRegistration;
 use Radiergummi\OpenApi\Tests\Fixtures\Enums\ArticleStatus;
 use Radiergummi\OpenApi\Tests\Fixtures\ScalarOnlyData;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 uses()->group('openapi');
 
@@ -140,6 +144,38 @@ class TypedReturnController extends Controller
     }
 
     public function nullableDto(): ?PlainReturnDto
+    {
+        throw new LogicException('Signature-only fixture; never invoked.');
+    }
+
+    public function neverReturn(): never
+    {
+        throw new LogicException('Signature-only fixture; never invoked.');
+    }
+
+    /**
+     * @throws NotFoundHttpException
+     */
+    public function neverNotFound(): never
+    {
+        throw new NotFoundHttpException('Signature-only fixture; never invoked.');
+    }
+
+    #[Response(status: 200, description: 'OK')]
+    public function neverWithResponseAttribute(): never
+    {
+        throw new LogicException('Signature-only fixture; never invoked.');
+    }
+
+    #[Response(status: 404, description: 'Not found')]
+    public function neverWithErrorResponseAttribute(): never
+    {
+        throw new LogicException('Signature-only fixture; never invoked.');
+    }
+
+    // A resourceful action name on a matching verb, so a convention status (204) would apply,
+    // proving suppression skips the convention branch instead of crashing on a null primary.
+    public function destroy(): never
     {
         throw new LogicException('Signature-only fixture; never invoked.');
     }
@@ -327,6 +363,103 @@ it('wraps a nullable plain-DTO return in the OAS 3.1 nullable idiom', function (
     expect($schema['oneOf'] ?? null)->toHaveCount(2)
         ->and($schema['oneOf'][0]['$ref'])->toBe('#/components/schemas/PlainReturnDto')
         ->and($schema['oneOf'][1])->toBe(['type' => 'null']);
+});
+
+it('suppresses the synthetic 200 for a never return, documenting a default response instead', function (): void {
+    Route::get('/typed/never', [TypedReturnController::class, 'neverReturn']);
+
+    $responses = generateSpec()['paths']['/typed/never']['get']['responses'] ?? [];
+
+    // The action cannot succeed, so no 2xx is documented (and no synthetic empty 200); the
+    // catch-all default carries the outcome so the operation still documents a response.
+    $successStatuses = array_filter(
+        array_keys($responses),
+        static fn(int|string $status): bool => (int) $status >= 200 && (int) $status <= 299,
+    );
+
+    expect($successStatuses)->toBe([])
+        ->and($responses)->toHaveKey('default')
+        ->and($responses['default'])->toBe([
+            'description' => 'The action never returns a successful response.',
+        ]);
+});
+
+it('keeps the inferred error responses alongside the default for a never return', function (): void {
+    Route::get('/typed/never-throws', [TypedReturnController::class, 'neverNotFound']);
+
+    $responses = generateSpec()['paths']['/typed/never-throws']['get']['responses'] ?? [];
+
+    expect($responses)->toHaveKey('default')
+        ->and($responses)->toHaveKey('404')
+        ->and($responses)->not->toHaveKey('200');
+});
+
+it('emits a spec-valid document for a never return', function (): void {
+    Route::get('/typed/never-valid', [TypedReturnController::class, 'neverReturn']);
+    app()->forgetScopedInstances();
+
+    $result = app(LintRunner::class)->run(new LintOptions(only: ['spec.invalid']));
+
+    expect($result->findings)->toBe([]);
+});
+
+it('does not emit response.no-success for a never return, with or without inferred errors', function (): void {
+    Route::get('/typed/never-nosuccess', [TypedReturnController::class, 'neverReturn']);
+    Route::get('/typed/never-nosuccess-throws', [TypedReturnController::class, 'neverNotFound']);
+    app()->forgetScopedInstances();
+
+    $result = app(LintRunner::class)->run(new LintOptions(
+        only: ['response.no-success'],
+        uriGlob: 'typed/never-nosuccess*',
+    ));
+
+    expect($result->findings)->toBe([]);
+});
+
+it('lets an explicit 2xx #[Response] win over never suppression', function (): void {
+    Route::get('/typed/never-explicit', [TypedReturnController::class, 'neverWithResponseAttribute']);
+
+    $responses = generateSpec()['paths']['/typed/never-explicit']['get']['responses'] ?? [];
+
+    // The override is a real success response, so the floor must not add its catch-all on top:
+    // the action is no longer documenting an absent outcome.
+    expect($responses['200'] ?? null)->not->toBeNull()
+        ->and($responses['200']['description'])->toBe('OK')
+        ->and($responses)->not->toHaveKey('default');
+});
+
+it('keeps the default floor when a never action carries a non-2xx #[Response]', function (): void {
+    Route::get('/typed/never-error-attribute', [TypedReturnController::class, 'neverWithErrorResponseAttribute']);
+
+    $responses = generateSpec()['paths']['/typed/never-error-attribute']['get']['responses'] ?? [];
+
+    // Only a 2xx attribute overrides the primary, so a documented 404 leaves the action suppressed:
+    // it still has no success response, and the floor documents that.
+    expect($responses)->toHaveKey('default')
+        ->and($responses)->toHaveKey('404')
+        ->and($responses)->not->toHaveKey('200');
+});
+
+it('does not emit operation.return-type-missing for a never return (suppression is intentional)', function (): void {
+    Route::get('/typed/never-lint', [TypedReturnController::class, 'neverReturn']);
+    app()->forgetScopedInstances();
+
+    $result = app(LintRunner::class)->run(new LintOptions(
+        only: ['operation.return-type-missing'],
+        uriGlob: 'typed/never-lint',
+    ));
+
+    expect($result->findings)->toBe([]);
+});
+
+it('skips the convention status for a never return without crashing on a null primary', function (): void {
+    // `destroy` on DELETE resolves a 204 convention status; suppression must skip that branch.
+    Route::delete('/typed/never-destroy', [TypedReturnController::class, 'destroy']);
+
+    $responses = generateSpec()['paths']['/typed/never-destroy']['delete']['responses'] ?? [];
+
+    expect($responses)->not->toHaveKey('204')
+        ->and($responses)->not->toHaveKey('200');
 });
 
 it('shapes a plain DTO with every convention plugin disabled (language-level path)', function (): void {

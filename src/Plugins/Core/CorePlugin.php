@@ -24,6 +24,7 @@ use Radiergummi\OpenApi\Plugins\Core\Resolvers\DiscriminatedRequestSchemaResolve
 use Radiergummi\OpenApi\Plugins\Core\Resolvers\EloquentModelResponseResolver;
 use Radiergummi\OpenApi\Plugins\Core\Resolvers\FindReturnModelResponseResolver;
 use Radiergummi\OpenApi\Plugins\Core\Resolvers\FormRequestRequestSchemaResolver;
+use Radiergummi\OpenApi\Plugins\Core\Resolvers\HttpResponseTypeResolver;
 use Radiergummi\OpenApi\Plugins\Core\Resolvers\InlineJsonResponseResolver;
 use Radiergummi\OpenApi\Plugins\Core\Resolvers\InlineValidationRequestSchemaResolver;
 use Radiergummi\OpenApi\Plugins\Core\Resolvers\PaginationQueryParameterResolver;
@@ -63,6 +64,10 @@ final class CorePlugin implements Plugin
 
         // Runs after the core resolver so an explicit #[QueryParam('page')] wins via dedup.
         $registry->addQueryParameterResolver(PaginationQueryParameterResolver::class);
+
+        // A framework HTTP response return type (redirect / streamed / binary file) carries its
+        // whole contract in the signature; claim it before the schema-shaping resolvers below.
+        $registry->addPrimaryResponseResolver(HttpResponseTypeResolver::class);
         $registry->addPrimaryResponseResolver(PaginatorResponseResolver::class);
         $registry->addPrimaryResponseResolver(EloquentModelResponseResolver::class);
 
