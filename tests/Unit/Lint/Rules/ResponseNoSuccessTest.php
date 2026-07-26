@@ -76,6 +76,36 @@ it('emits no finding when the only response is a default response', function ():
     expect($findings)->toBe([]);
 });
 
+it('emits no finding when the operation documents a redirect instead of a 2xx', function (array $statusCodes): void {
+    $operation = makeResponseNoSuccessOperation('/redirect', HttpMethod::Get, $statusCodes);
+
+    $findings = iterator_to_array(
+        new ResponseNoSuccess()->checkOperation($operation, OperationNodeFactory::emptyContext()),
+    );
+
+    expect($findings)->toBe([]);
+})->with([
+    '302 only' => [[302]],
+    '302 with errors' => [[302, 404]],
+    '301 permanent' => [[301]],
+]);
+
+it('still reports an operation documenting failure only', function (array $statusCodes): void {
+    // The complement of the redirect/default skips: no 2xx, no 3xx, no default is the shape the
+    // rule exists to catch, and widening those skips must not blunt it.
+    $operation = makeResponseNoSuccessOperation('/failing', HttpMethod::Post, $statusCodes);
+
+    $findings = iterator_to_array(
+        new ResponseNoSuccess()->checkOperation($operation, OperationNodeFactory::emptyContext()),
+    );
+
+    expect($findings)->toHaveCount(1)
+        ->and($findings[0]->ruleId)->toBe('response.no-success');
+})->with([
+    'client error only' => [[404]],
+    'client and server errors' => [[401, 500]],
+]);
+
 it('emits a finding per operation missing a success response', function (): void {
     $context = OperationNodeFactory::emptyContext();
     $op1 = makeResponseNoSuccessOperation('/things', HttpMethod::Get, [404]);

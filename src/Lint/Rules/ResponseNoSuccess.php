@@ -17,12 +17,18 @@ use function sprintf;
 
 /**
  * Reports when an operation has responses defined but none of them is a 2xx success response.
+ *
+ * What the rule is really after is an operation that documents *failure only*. An operation
+ * declaring the catch-all `default` has stated its outcome space on purpose (a `never`-returning
+ * action, say), and one declaring a 3xx has documented its success path as a redirect. Neither is
+ * underspecified, so both stay silent.
  */
 final class ResponseNoSuccess implements Rule, OperationRuleVisitor
 {
     public string $id = 'response.no-success';
     public Severity $severity = Severity::Underspecified;
-    public string $description = 'Operation has no 2xx response.';
+    public string $description = 'Operation documents only failure: no 2xx response, and no redirect '
+        . 'or default response documenting the outcome another way.';
 
     /**
      * @return iterable<Finding>
@@ -34,7 +40,12 @@ final class ResponseNoSuccess implements Rule, OperationRuleVisitor
             return;
         }
 
-        if (array_any($operation->responses, fn(ResponseNode $response): bool => $response->isDefault)) {
+        // A documented outcome that is not a 2xx: the catch-all, or a redirect (the redirect is the
+        // success path). Either way the operation is not documenting failure only.
+        if (array_any(
+            $operation->responses,
+            fn(ResponseNode $response): bool => $response->isDefault || $response->isRedirect,
+        )) {
             return;
         }
 
