@@ -21,11 +21,16 @@ final class ResourceTarget
      *                                         exclusive with `resourceClass`.
      * @param bool              $paginated     Whether a collection carries the `{data, links, meta}`
      *                                         envelope or a plain `{data}` envelope.
+     * @param null|int          $successStatus The 2xx status the action authored for this response.
+     *                                         Only the `response()->json(<resource>, <status>)`
+     *                                         unwrap ever sets it; every other path leaves it null,
+     *                                         meaning the conventional status applies.
      */
     public function __construct(
         public readonly ?string $resourceClass,
         public readonly bool $isCollection,
         public readonly ?string $modelClass = null,
         public readonly bool $paginated = true,
+        public readonly ?int $successStatus = null,
     ) {}
 }

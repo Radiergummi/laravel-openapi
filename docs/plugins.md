@@ -246,10 +246,24 @@ Recognised shapes:
   honoured and **wins over the body** when both are present.
 - A `->additional(...)` chained onto a matched expression is ignored — the
   resource class stays certain; the extra envelope keys are not modelled.
-- A resource wrapped in `response()->json(<resource>, <status>)` is unwrapped to
-  the resource, which is then resolved by the shapes above (`response()->json(X::make($m), 201)`
-  documents the `X` schema). The status is the inline-JSON resolver's concern; the
-  resource path documents the resource under the conventional success status.
+- A resource wrapped in a **direct, unchained** `response()->json(<resource>, <status>)`
+  is unwrapped to the resource, which is then resolved by the shapes above
+  (`response()->json(X::make($m), 201)` documents the `X` schema under `201`). A
+  statically-readable **2xx status other than 204** — an integer literal or a class
+  constant such as `Response::HTTP_ACCEPTED`, positional or named
+  (`status: 202`) — is honoured and **wins over the resourceful-route convention**,
+  so a `store()` authoring `202` documents `202`, not the convention's `201`. A
+  `self::`/`static::` constant is not resolved (the same limitation the literal-body
+  reader has), and neither is a variable; both keep the conventional status. A
+  `204` never reaches this path at all: the inline-JSON resolver claims it first and
+  documents a body-less `204`, since a resource envelope must not ride on a
+  contentless status.
+  Chaining anything but `->additional(...)` after `json()` — `->header(...)`,
+  `->setStatusCode(...)` — makes the scan refuse the expression outright, so no
+  resource is resolved and the operation falls back to a bare `200`. (Distinct from
+  the literal-body `->setStatusCode()` rule in
+  [Auto-derivation → Inline JSON responses](auto-derivation.md#inline-json-responses),
+  which reads a literal body rather than a resource.)
 
 The envelope follows the expression: a collection whose source visibly ends in a
 `paginate()` / `simplePaginate()` / `cursorPaginate()` call documents the

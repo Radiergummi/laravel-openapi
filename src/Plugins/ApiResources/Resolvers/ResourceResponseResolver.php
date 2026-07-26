@@ -28,11 +28,13 @@ use Radiergummi\OpenApi\Support\Extraction\EloquentModelToSchema;
 use Radiergummi\OpenApi\Support\Generator\ComponentSchemaRegistry;
 use ReflectionClass;
 use ReflectionException;
+use Symfony\Component\HttpFoundation\Response as HttpFoundationResponse;
 
 use function sprintf;
 
 /**
- * Resolves an Eloquent API Resource return type into its `200 OK` response.
+ * Resolves an Eloquent API Resource return type into its success response: the status the action
+ * authored on a `response()->json(<resource>, <status>)` wrapper, or `200 OK` otherwise.
  *
  * Returns null when the action is not a resource endpoint, or when it returns a collection
  * type whose item class is undeclared (the latter is reported by the
@@ -74,11 +76,13 @@ final readonly class ResourceResponseResolver implements PrimaryResponseResolver
             default => $this->envelopeFactory->unpaginatedCollection($ref),
         };
 
+        $status = $target->successStatus ?? 200;
+
         return PrimaryResponse::of(new OA\Response([
-            'response' => '200',
-            'description' => 'OK',
+            'response' => (string) $status,
+            'description' => HttpFoundationResponse::$statusTexts[$status] ?? sprintf('HTTP %d', $status),
             'content' => [MediaType::Json->schema($envelope)],
-        ]));
+        ]), statusIsExplicit: $target->successStatus !== null);
     }
 
     /**
