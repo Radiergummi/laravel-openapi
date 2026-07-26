@@ -110,7 +110,9 @@ class BookingResource extends JsonResource
   declared `public` typed properties), `$this->field` types from that
   property's type instead. A `$this->wrapped->field` read — where `$wrapped` is
   a typed property on the resource — likewise types from the value object
-  declared as `$wrapped`'s type. Properties with no declared type, a
+  declared as `$wrapped`'s type. An `array` / `list<T>` / `array<string, T>` /
+  `array{…}` property, or one refined by a `@var` tag, types as the matching
+  array / map / object schema. Properties with no declared type, a
   union/intersection type, or a type that would only map to a placeholder stay
   **unconstrained** (never-wrong); the model path is always tried first.
 - `$this->field->format(…)` on an attribute the model already types as a date

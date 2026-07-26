@@ -37,6 +37,18 @@ final readonly class ParsedDocBlock
     }
 
     /**
+     * The type node of the first `@var` tag, or null when there is none.
+     */
+    public function varType(): ?TypeNode
+    {
+        foreach ($this->node->getVarTagValues() as $tag) {
+            return $tag->type;
+        }
+
+        return null;
+    }
+
+    /**
      * The type node of each `@throws` tag, in source order.
      *
      * @return list<TypeNode>

@@ -9,6 +9,8 @@ use Radiergummi\OpenApi\Support\Extraction\PublicPropertyTypeReader;
 use Radiergummi\OpenApi\Support\Extraction\SchemaFromPublicProperties;
 use Radiergummi\OpenApi\Support\Generator\ComponentSchemaRegistry;
 use Radiergummi\OpenApi\Support\Generator\JsonSchemaFromType;
+use Radiergummi\OpenApi\Support\PhpDoc\DocBlockParser;
+use Radiergummi\OpenApi\Support\Types\TypeNodeResolver;
 use Radiergummi\OpenApi\Tests\Fixtures\Enums\ArticleStatus;
 use Radiergummi\OpenApi\Tests\Fixtures\UnitFixtureEnum;
 use Symfony\Component\TypeInfo\TypeResolver\TypeResolver;
@@ -38,12 +40,27 @@ class MixedPropertiesDto
 {
     public ArticleStatus $status = ArticleStatus::Draft;
 
-    // A bare array carries no element shape and a unit enum no JSON-primitive shape; the reader
-    // refuses both, so the builder omits them rather than stubbing.
-    /** @phpstan-ignore missingType.iterableValue (native array is the refusal case under test) */
+    // A bare array types as an unconstrained array; a unit enum has no JSON-primitive shape, so the
+    // reader refuses it and the builder omits it rather than stubbing.
+    /** @phpstan-ignore missingType.iterableValue (a bare native array is a case under test) */
     public array $tags = [];
 
     public UnitFixtureEnum $kind = UnitFixtureEnum::Alpha;
+}
+
+class CollectionPropertiesDto
+{
+    /** @var list<int> */
+    public array $ids = [];
+
+    /** @var array{code: string, size: int} */
+    public array $meta = ['code' => '', 'size' => 0];
+
+    /** @var list<ScalarPropertiesDto> */
+    public array $children = [];
+
+    /** @phpstan-ignore missingType.iterableValue (a bare native array is a case under test) */
+    public array $tags = [];
 }
 
 class NoUsablePropertiesService
@@ -104,6 +121,8 @@ function schemaFromPublicProperties(): array
     $reader = new PublicPropertyTypeReader(
         jsonSchemaFromType: new JsonSchemaFromType(new NullLogger(), $registry),
         typeResolver: TypeResolver::create(),
+        docBlockParser: DocBlockParser::create(),
+        typeNodeResolver: TypeNodeResolver::create(),
     );
 
     return [new SchemaFromPublicProperties($registry, $reader), $registry];
@@ -164,11 +183,52 @@ it('refs a backed enum and omits properties the reader refuses', function (): vo
         $byName[$property->property] = $property;
     }
 
-    // Only the backed enum types; the bare array and unit enum are refused (omitted, not stubbed).
+    // The backed enum and the bare array both type; the unit enum is refused (omitted, not stubbed).
     expect($byName)->toHaveKey('status')
-        ->and($byName)->not->toHaveKey('tags')
+        ->and($byName)->toHaveKey('tags')
         ->and($byName)->not->toHaveKey('kind')
-        ->and($byName['status']->ref)->toBe('#/components/schemas/ArticleStatus');
+        ->and($byName['status']->ref)->toBe('#/components/schemas/ArticleStatus')
+        ->and($byName['tags']->type)->toBe('array');
+});
+
+it('builds array, map, and nested-list properties on a DTO', function (): void {
+    [$builder, $registry] = schemaFromPublicProperties();
+
+    $builder->buildRef(CollectionPropertiesDto::class);
+
+    $schema = $registry->schemaForKey('CollectionPropertiesDto');
+    $byName = [];
+
+    foreach ($schema->properties as $property) {
+        $byName[$property->property] = $property;
+    }
+
+    // list<int> → array of integers.
+    expect($byName['ids']->type)->toBe('array')
+        ->and($byName['ids']->items->type)->toBe('integer');
+
+    // array{…} → object with required fields.
+    $metaTypes = [];
+
+    foreach ($byName['meta']->properties as $property) {
+        $metaTypes[$property->property] = $property->type;
+    }
+
+    expect($byName['meta']->type)->toBe('object')
+        ->and($metaTypes)->toBe(['code' => 'string', 'size' => 'integer'])
+        ->and($byName['meta']->required)->toEqualCanonicalizing(['code', 'size']);
+
+    // list<ScalarPropertiesDto> → array of $refs (the nested class becomes its own component).
+    expect($byName['children']->type)->toBe('array')
+        ->and($byName['children']->items->ref)->toBe('#/components/schemas/ScalarPropertiesDto')
+        ->and($registry->hasKey('ScalarPropertiesDto'))->toBeTrue();
+
+    // A bare array types as an unconstrained array.
+    expect($byName['tags']->type)->toBe('array')
+        ->and(is_undefined($byName['tags']->items->type))->toBeTrue();
+
+    // Every property is non-nullable, so all are required.
+    expect($schema->required)->toEqualCanonicalizing(['ids', 'meta', 'children', 'tags']);
 });
 
 it('degrades a class with no usable public property to null', function (): void {

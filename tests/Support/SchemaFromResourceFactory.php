@@ -57,6 +57,8 @@ final class SchemaFromResourceFactory
             publicPropertyTypeReader: new PublicPropertyTypeReader(
                 jsonSchemaFromType: new JsonSchemaFromType(new NullLogger(), $registry),
                 typeResolver: TypeResolver::create(),
+                docBlockParser: DocBlockParser::create(),
+                typeNodeResolver: TypeNodeResolver::create(),
             ),
         );
     }

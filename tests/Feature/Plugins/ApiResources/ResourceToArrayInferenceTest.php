@@ -440,6 +440,22 @@ it('refuses to type a union-typed value-object property (shape A)', function ():
         ->and($mixed)->not->toHaveKey('oneOf');
 });
 
+it('types array and `@var`-refined value-object properties (shape A)', function (): void {
+    Route::get('/genres-value-object', [ToArrayInferenceController::class, 'valueObject']);
+
+    $properties = resourceComponent(generateSpec(), 'ValueObjectResource')['properties'];
+
+    // A bare native array types as an unconstrained array (previously omitted).
+    expect($properties['tags']['type'])->toBe('array')
+        ->and($properties['tags'])->not->toHaveKey('properties');
+
+    // A `@var array{…}` refines the native array into an object with typed, required fields.
+    expect($properties['meta']['type'])->toBe('object')
+        ->and($properties['meta']['properties']['code']['type'])->toBe('string')
+        ->and($properties['meta']['properties']['size']['type'])->toBe('integer')
+        ->and($properties['meta']['required'])->toEqualCanonicalizing(['code', 'size']);
+});
+
 it('refuses to type an absent value-object property (shape A)', function (): void {
     Route::get('/genres-value-object', [ToArrayInferenceController::class, 'valueObject']);
 

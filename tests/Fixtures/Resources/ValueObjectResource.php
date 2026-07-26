@@ -31,6 +31,8 @@ class ValueObjectResource extends JsonResource
             'length' => $this->summary->length,
             'note' => $this->summary->note,
             'mixed' => $this->summary->mixedKey,
+            'tags' => $this->summary->tags,
+            'meta' => $this->summary->meta,
             'absent' => $this->summary->somethingAbsent,
         ];
     }

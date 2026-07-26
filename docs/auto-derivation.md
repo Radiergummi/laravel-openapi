@@ -154,7 +154,10 @@ package:
 - a **plain DTO** — a class whose public and constructor-promoted properties are
   typed — becomes a component schema built from those properties (nested DTOs
   become their own pooled `$ref`, and self- or mutually-referential classes are
-  cycle-safe);
+  cycle-safe). A property typed `array` / `list<T>` / `array<string, T>` /
+  `array{…}`, or refined by a `@var` tag on the property, types as the matching
+  array / map / object schema; the `@var` type wins only when it maps, so a
+  property typed today never loses its schema to an unmappable refinement;
 - a documented **`@return array{id: int, name: string}`** shape becomes an object
   schema;
 - a **scalar**, a **backed enum** (a reusable `$ref`), a **string-keyed map**
