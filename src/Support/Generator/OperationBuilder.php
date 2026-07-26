@@ -240,6 +240,9 @@ final readonly class OperationBuilder
 
         $autoPrimaryResponse = $autoPrimaryResult?->response;
         $autoStatusIsExplicit = $autoPrimaryResult?->statusIsExplicit === true;
+        // A resolver claiming the action has no success response (a `never` return): the synthetic
+        // 200 fallback is suppressed and the primary response stays null.
+        $autoSuppressed = $autoPrimaryResult?->suppressed === true;
 
         $resolvedConvention = $this->resolveConvention($action);
         $convention = $resolvedConvention?->convention;
@@ -268,49 +271,68 @@ final readonly class OperationBuilder
 
         $additionalResponses = $filteredAdditional;
 
+        // Suppression is an intentional "no success response", not a missing schema, so it counts as
+        // a produced response and must not raise operation.return-type-missing.
         $this->emitMissingResponseSchemaFinding(
             $action,
-            responseProduced: $primaryOverride !== null || $autoPrimaryResponse !== null,
+            responseProduced: $primaryOverride !== null || $autoPrimaryResponse !== null || $autoSuppressed,
         );
 
+        // Nullable: an explicit 2xx #[Response] still wins over suppression; otherwise a suppressed
+        // auto-result leaves no primary response (and no synthetic 200).
         $primaryResponse = $primaryOverride
             ?? $autoPrimaryResponse
-            ?? new OA\Response(['response' => '200', 'description' => 'OK']);
+            ?? ($autoSuppressed ? null : new OA\Response(['response' => '200', 'description' => 'OK']));
 
-        // A 204 forbids a body; a content-bearing body-scanned response is stronger evidence of the
-        // real status, so it keeps its 200 + schema instead of being discarded for a bogus 204.
-        $conventionSuppressedByBody = $convention?->successStatusCode === 204
-            && $autoPrimaryResponse !== null
-            && is_array($autoPrimaryResponse->content)
-            && $autoPrimaryResponse->content !== [];
+        // The whole status-resolution region reads $primaryResponse->response, so it is skipped
+        // entirely when suppressed (a `never` action has no primary response to carry a status or
+        // record its provenance); the null $statusProvenance is dropped by array_filter below.
+        $statusProvenance = null;
 
-        // Apply convention status unless an explicit #[Response(2xx)] or body-scanned status claimed
-        // it, or a 204 convention is yielding to a content-bearing body.
-        if (
-            $primaryOverride === null
-            && !$autoStatusIsExplicit
-            && $convention?->successStatusCode !== null
-            && !$conventionSuppressedByBody
-        ) {
-            $primaryResponse = $this->applyConventionStatus($primaryResponse, $convention->successStatusCode);
+        if ($primaryResponse !== null) {
+            // A 204 forbids a body; a content-bearing body-scanned response is stronger evidence of
+            // the real status, so it keeps its 200 + schema instead of being discarded for a bogus 204.
+            $conventionSuppressedByBody = $convention?->successStatusCode === 204
+                && $autoPrimaryResponse !== null
+                && is_array($autoPrimaryResponse->content)
+                && $autoPrimaryResponse->content !== [];
+
+            // Apply convention status unless an explicit #[Response(2xx)] or body-scanned status
+            // claimed it, or a 204 convention is yielding to a content-bearing body.
+            if (
+                $primaryOverride === null
+                && !$autoStatusIsExplicit
+                && $convention?->successStatusCode !== null
+                && !$conventionSuppressedByBody
+            ) {
+                $primaryResponse = $this->applyConventionStatus($primaryResponse, $convention->successStatusCode);
+            }
+
+            $statusProvenance = $this->statusProvenance(
+                (string) $primaryResponse->response,
+                $primaryOverride !== null,
+                $autoStatusIsExplicit,
+                $conventionSuppressedByBody,
+                $resolvedConvention,
+                $action,
+            );
         }
 
-        $statusProvenance = $this->statusProvenance(
-            (string) $primaryResponse->response,
-            $primaryOverride !== null,
-            $autoStatusIsExplicit,
-            $conventionSuppressedByBody,
-            $resolvedConvention,
-            $action,
-        );
-
         // Primary 2xx first; ErrorResponseInferenceStage appends errors later, skipping statuses already declared.
-        $responses = [$primaryResponse, ...$additionalResponses];
+        // A suppressed primary contributes the catch-all `default` instead: an operation must document
+        // at least one response, and `default` is the honest encoding of an action that never succeeds.
+        $responses = $primaryResponse !== null
+            ? [$primaryResponse, ...$additionalResponses]
+            : [$this->suppressedResponse(), ...$additionalResponses];
         $this->exampleApplier->applyResponseExamples($action, $responses);
-        $this->exampleApplier->applyResponseExampleFiles($action, $responses, $primaryResponse);
         $this->responseHeaderApplier->applyAuthored($action, $responses);
-        $this->responseHeaderApplier->applyConventional($action, $responses, $primaryResponse);
-        $this->linkApplier->apply($action, $primaryResponse);
+
+        // The remaining appliers key off the primary response; nothing to apply when suppressed.
+        if ($primaryResponse !== null) {
+            $this->exampleApplier->applyResponseExampleFiles($action, $responses, $primaryResponse);
+            $this->responseHeaderApplier->applyConventional($action, $responses, $primaryResponse);
+            $this->linkApplier->apply($action, $primaryResponse);
+        }
 
         [$summary, $summaryProvenance] = $this->resolveSummary($action, $resolvedConvention);
         [$description, $descriptionProvenance] = $this->resolveDescription($action);
@@ -364,6 +386,20 @@ final readonly class OperationBuilder
             externalDocs: $externalDocs,
             provenance: $provenance,
         );
+    }
+
+    /**
+     * The catch-all response documenting an action whose primary response was suppressed.
+     *
+     * Declaring `default` states that the outcome space is deliberate rather than underspecified,
+     * which is why `response.no-success` stays silent on such an operation.
+     */
+    private function suppressedResponse(): OA\Response
+    {
+        return new OA\Response([
+            'response' => 'default',
+            'description' => 'The action never returns a successful response.',
+        ]);
     }
 
     /**

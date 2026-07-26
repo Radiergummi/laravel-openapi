@@ -110,9 +110,22 @@ class BookingResource extends JsonResource
   declared `public` typed properties), `$this->field` types from that
   property's type instead. A `$this->wrapped->field` read — where `$wrapped` is
   a typed property on the resource — likewise types from the value object
-  declared as `$wrapped`'s type. Properties with no declared type, a
+  declared as `$wrapped`'s type. An `array` / `list<T>` / `array<string, T>` /
+  `array{…}` property, or one refined by a `@var` tag, types as the matching
+  array / map / object schema. Properties with no declared type, a
   union/intersection type, or a type that would only map to a placeholder stay
   **unconstrained** (never-wrong); the model path is always tried first.
+- `$this->field->format(…)` on an attribute the model already types as a date
+  (`format: date-time` / `date`) documents a **`string`**, refined to
+  `format: date-time` when the format argument is an RFC3339 one (`DATE_ATOM`,
+  `DATE_RFC3339`, `DATE_W3C`, `DateTimeInterface::ATOM`,
+  `DATE_RFC3339_EXTENDED`, or `'c'`) and to `format: date` for `'Y-m-d'`. Any
+  other format string keeps the plain `string` — including the legacy
+  `DATE_ISO8601` and `'Y-m-d H:i:s'`, which are not RFC3339, and an argument
+  that is not a compile-time literal. A plain `->format(…)` also drops the
+  `null` a nullable timestamp carries, since reaching the call proves the value
+  was there; `?->format(…)` keeps it nullable. Receivers the model cannot type
+  as a date, a value object's members among them, stay **unconstrained**.
 - Literal scalars and arrays type themselves; nested literal arrays become
   nested object/array schemas.
 - `new OtherResource(...)`, `OtherResource::make(...)`, and
@@ -128,7 +141,7 @@ class BookingResource extends JsonResource
 - `$this->merge([...])` / `$this->mergeWhen(..., [...])` inline their literal
   payload's keys at the top level (optional for `mergeWhen`); a non-literal
   payload is skipped with a generation-log note.
-- Anything else (method calls, ternaries, fields the model does not know)
+- Anything else (ternaries, other method calls, fields the model does not know)
   keeps its key with an **unconstrained schema** — a response property is
   never silently dropped — and one summarising generation-log note per
   resource lists the affected keys.

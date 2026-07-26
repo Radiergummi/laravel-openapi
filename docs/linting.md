@@ -651,7 +651,7 @@ is enabled.
 | `request.empty` | 2 | POST/PUT/PATCH action has no resolvable request-body schema. Add a Data class or FormRequest. |
 | `errors.resolver-failed` | 2 | A registered `ErrorResponseResolver` threw while building an error response; the extractor caught the throw and the chain continued, but the offending resolver should be fixed. |
 | `resource.field-type-missing` | 2 | A #[ResourceField] is declared without a resolvable type. |
-| `response.no-success` | 2 | Operation has no 2xx response. |
+| `response.no-success` | 2 | Operation documents only failure: no 2xx response, and no redirect or default response documenting the outcome another way. |
 | `response.success-empty-body` | 2 | A 2xx response (other than 204/205/304) declares no body schema. Likely a void-return controller. |
 | `response.redirect-without-location` | 2 | 3xx response has no Location header. |
 | `rule.invalid-enum-value` | 2 | A SelfDocumentingRule returned a non-scalar enum value; the entry was dropped. (Core plugin.) |

@@ -63,7 +63,16 @@ final readonly class TypedReturnResponseResolver implements PrimaryResponseResol
             return null;
         }
 
-        $schema = $this->schemaForShape($this->shapeResolver->describe($reflector));
+        $shape = $this->shapeResolver->describe($reflector);
+
+        // A `never` return means the action cannot complete successfully (it always throws), so it
+        // has no success response at all. Suppress the synthetic 200 rather than degrade to it.
+        // Lifted here (not schemaForShape) because suppression is a resolver state, not a schema.
+        if ($this->isNeverReturn($shape)) {
+            return PrimaryResponse::suppressed();
+        }
+
+        $schema = $this->schemaForShape($shape);
 
         if ($schema === null) {
             return null;
@@ -76,6 +85,13 @@ final readonly class TypedReturnResponseResolver implements PrimaryResponseResol
         ]));
     }
 
+    private function isNeverReturn(ReturnShape $shape): bool
+    {
+        return $shape->container === ReturnContainer::Single
+            && $shape->itemType instanceof BuiltinType
+            && $shape->itemType->isIdentifiedBy(TypeIdentifier::NEVER);
+    }
+
     private function schemaForShape(ReturnShape $shape): ?OA\Schema
     {
         // Paginator envelopes are a Laravel convention the Core paginator resolver owns; defer.
@@ -83,16 +99,15 @@ final readonly class TypedReturnResponseResolver implements PrimaryResponseResol
             return null;
         }
 
-        // A bare `mixed` / `void` / `never` return carries no body shape; the engine would map it to
+        // A bare `mixed` / `void` / `null` return carries no body shape; the engine would map it to
         // an empty or "unmapped" stub, so degrade instead. (A `mixed` *element* of a list or shape
-        // still maps to an unconstrained item.)
+        // still maps to an unconstrained item. `never` is handled ahead of this as suppression.)
         if (
             $shape->container === ReturnContainer::Single
             && $shape->itemType instanceof BuiltinType
             && $shape->itemType->isIdentifiedBy(
                 TypeIdentifier::MIXED,
                 TypeIdentifier::VOID,
-                TypeIdentifier::NEVER,
                 TypeIdentifier::NULL,
             )
         ) {
