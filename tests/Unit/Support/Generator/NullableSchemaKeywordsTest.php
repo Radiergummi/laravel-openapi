@@ -225,7 +225,7 @@ it('applyTo() moves each keyword to the side its classification claims', functio
     // The component key identifies the outer node and never migrates into the wrapper.
     expect($target->property)
         ->toBe('field')
-        ->and(is_undefined($inner->property ?? Generator::UNDEFINED))->toBeTrue();
+        ->and(is_undefined(readSchemaMember($inner, 'property')))->toBeTrue();
 })->with('schema keywords');
 
 it('wrap() partitions each keyword identically and leaves the input alone', function (
