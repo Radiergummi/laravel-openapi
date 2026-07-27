@@ -116,8 +116,9 @@ class BookingResource extends JsonResource
   union/intersection type, or a type that would only map to a placeholder stay
   **unconstrained** (never-wrong); the model path is always tried first.
   Formatting such a property is typed too — see the `->format(…)` bullet below.
-- `$this->field->format(…)` on a receiver already typed as a date
-  (`format: date-time` / `date`) documents a **`string`**, refined to
+- `$this->field->format(…)` / `$this->wrapped->field->format(…)` on a receiver
+  already typed as a date (`format: date-time` / `date`) documents a
+  **`string`**, refined to
   `format: date-time` when the format argument is an RFC3339 one (`DATE_ATOM`,
   `DATE_RFC3339`, `DATE_W3C`, `DateTimeInterface::ATOM`,
   `DATE_RFC3339_EXTENDED`, or `'c'`) and to `format: date` for `'Y-m-d'`. Any

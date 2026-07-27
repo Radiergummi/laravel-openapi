@@ -31,6 +31,7 @@ class FormattedDateShapeAResource extends JsonResource
             'ends_at' => $this->period->endsAt->format(DATE_ATOM),
             'ends_at_nullsafe' => $this->period->endsAt?->format(DATE_ATOM),
             'price' => $this->period->price->format('%.2f'),
+            'currency' => $this->period->currency->format('%s'),
             'dynamic_format' => $this->period->startsAt->format($request->dateFormat),
         ];
     }

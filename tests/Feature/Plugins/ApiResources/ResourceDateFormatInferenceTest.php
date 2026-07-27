@@ -210,6 +210,13 @@ it('keeps ->format() on an untypeable value-object member unconstrained', functi
     expect($properties['price'])->toBe([]);
 });
 
+it('keeps ->format() on a typed but non-date value-object member unconstrained', function (): void {
+    $properties = formattedDateProperties('/dates-shape-a', 'shapeA', 'FormattedDateShapeAResource');
+
+    // The reader types a backed enum, so this reaches the date-evidence check and is refused there.
+    expect($properties['currency'])->toBe([]);
+});
+
 // endregion
 
 // region Untouched neighbours
