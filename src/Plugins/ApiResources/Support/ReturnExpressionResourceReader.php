@@ -32,6 +32,7 @@ use PHPStan\PhpDocParser\Ast\Type\TypeNode;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 use Radiergummi\OpenApi\Enums\PaginatorKind;
+use Radiergummi\OpenApi\Plugins\ApiResources\Resolvers\ResourceResponseResolver;
 use Radiergummi\OpenApi\Routing\ResourceTarget;
 use Radiergummi\OpenApi\Support\MethodBody\AstLiteralEvaluator;
 use Radiergummi\OpenApi\Support\MethodBody\ConditionalContextPolicy;
@@ -80,8 +81,8 @@ use function sprintf;
  * return (or the variable it names, assigned exactly once on the unconditional path), or several
  * top-level returns that all resolve to the same resource (bare `return;` / `return null;`
  * ignored), unwrapped through resource-preserving chains (`->additional(...)`) and out of a
- * `response()->json(<resource>, …)` wrapper, whose statically-readable 2xx status (204 aside) rides
- * along on the target. Recognised shapes: `X::collection(...)`,
+ * `response()->json(<resource>, …)` wrapper, whose statically-readable status rides along on the
+ * target whatever it is. Recognised shapes: `X::collection(...)`,
  * `X::collect(...)`, `X::make(...)`, `new X(...)`, `->toResource(X::class)`,
  * `->toResourceCollection(X::class)`, bare `$model->toResource()` on a Model-typed parameter, and
  * `new JsonResource($model)` wrapping one.
@@ -324,10 +325,10 @@ final class ReturnExpressionResourceReader
         // about the status, so the resource survives and the convention supplies the status.
         $agreed = array_all(
             $resolved,
-            static fn(ResourceTarget $target): bool => $target->successStatus === $first->successStatus,
+            static fn(ResourceTarget $target): bool => $target->authoredStatus === $first->authoredStatus,
         );
 
-        return $agreed ? $first : $this->withSuccessStatus($first, null);
+        return $agreed ? $first : $this->withAuthoredStatus($first, null);
     }
 
     /**
@@ -666,7 +667,7 @@ final class ReturnExpressionResourceReader
         bool $silent,
     ): ?ResourceTarget {
         $current = $expression;
-        $successStatus = null;
+        $authoredStatus = null;
 
         while (true) {
             // `response()->json(<resource>, <status>)`: unwrap to the data argument and resolve it
@@ -674,23 +675,23 @@ final class ReturnExpressionResourceReader
             $jsonData = ResponseJsonCall::dataArgument($current);
 
             if ($jsonData !== null) {
-                $successStatus ??= $this->authoredSuccessStatus($current);
+                $authoredStatus ??= $this->authoredStatus($current);
                 $current = $jsonData->value;
 
                 continue;
             }
 
             if ($current instanceof StaticCall) {
-                return $this->withSuccessStatus(
+                return $this->withAuthoredStatus(
                     $this->targetFromStaticCall($current, $method, $silent),
-                    $successStatus,
+                    $authoredStatus,
                 );
             }
 
             if ($current instanceof NewExpression) {
-                return $this->withSuccessStatus(
+                return $this->withAuthoredStatus(
                     $this->targetFromNewExpression($current, $method, $silent),
-                    $successStatus,
+                    $authoredStatus,
                 );
             }
 
@@ -708,14 +709,14 @@ final class ReturnExpressionResourceReader
                 }
 
                 if ($methodName === 'toresource' || $methodName === 'toresourcecollection') {
-                    return $this->withSuccessStatus(
+                    return $this->withAuthoredStatus(
                         $this->targetFromTransformCall(
                             $current,
                             $methodName,
                             $method,
                             $silent,
                         ),
-                        $successStatus,
+                        $authoredStatus,
                     );
                 }
 
@@ -744,14 +745,13 @@ final class ReturnExpressionResourceReader
     }
 
     /**
-     * The 2xx status a `response()->json(<resource>, <status>)` wrapper authors, or null when the
-     * argument is absent, not statically readable, or outside the range this path may claim.
+     * The status a `response()->json(<resource>, <status>)` wrapper authors, or null when the
+     * argument is absent or not statically readable.
      *
-     * 204 is excluded because a resource envelope must never ride on a body-less status. With the
-     * Core plugin enabled the call is claimed before it reaches here; the exclusion is what keeps
-     * the Core-disabled configuration honest.
+     * Whether the status can carry a resource body is not decided here: the reader reports what
+     * the source says, and {@see ResourceResponseResolver} owns that policy.
      */
-    private function authoredSuccessStatus(Node $node): ?int
+    private function authoredStatus(Node $node): ?int
     {
         $argument = ResponseJsonCall::statusArgument($node);
 
@@ -767,16 +767,16 @@ final class ReturnExpressionResourceReader
             return null;
         }
 
-        return is_int($status) && $status >= 200 && $status < 300 && $status !== 204 ? $status : null;
+        return is_int($status) ? $status : null;
     }
 
     /**
      * The target carrying the given authored status, or the target itself when it already carries
      * it. Passing null clears a status a reconciliation could not agree on.
      */
-    private function withSuccessStatus(?ResourceTarget $target, ?int $status): ?ResourceTarget
+    private function withAuthoredStatus(?ResourceTarget $target, ?int $status): ?ResourceTarget
     {
-        if ($target === null || $target->successStatus === $status) {
+        if ($target === null || $target->authoredStatus === $status) {
             return $target;
         }
 
