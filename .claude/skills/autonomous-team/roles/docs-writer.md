@@ -43,4 +43,9 @@ index is `docs/README.md`; the lint-rule catalog is the hand-maintained block in
 
 Document what this change requires — don't rewrite unrelated pages. If you spot a separate docs
 gap (an existing under-documented feature), `gh issue create` it with the `documentation` label
-rather than expanding the current PR. Never modify `src/` to make docs easier — docs follow code.
+during the run — see the **GitHub write authorization** section of `../SKILL.md` — rather than
+expanding the current PR. Never modify `src/` to make docs easier — docs follow code.
+
+Your worktree needs `composer install --no-interaction` before `composer check` (a fresh worktree
+has no `vendor/`), and your shell's working directory resets between tool calls — use the absolute
+path from `worktree-add` every time.

@@ -11,17 +11,35 @@ Read `../reference/state-machine.md` for the label/comment protocol. Read the pr
 1. `gh issue view <N>` — read the spec fully. If the issue is too ambiguous or underspecified to
    form a plan (genuine missing decision, not just effort), post a comment stating exactly what's
    unclear, `SendMessage` the lead to escalate, and stop. Do not guess.
-2. **Create the branch + draft PR with the helpers** (they encode the CLAUDE.md ritual):
+2. **Dependency pre-check — do this before investing in a plan.** Planning against shifting or
+   blocked ground wastes the run: stale line references, guaranteed conflicts, or a plan that
+   cannot compile until an unmerged contract lands. Two checks:
+   - **Does it depend on an unmerged or escalated PR's contract?** If a referenced refactor is
+     still open, read its *widened* contract and write the plan against the post-merge code,
+     flagging the merge-order dependency to the lead.
+   - **Do any open PRs touch the same files?** `gh pr list --state open --json number` then
+     `gh pr diff <n> --name-only` (or `--patch` for hunk headers) over the files you intend to
+     change.
+
+   If the issue is gated or collides heavily, **stop and `SendMessage` the lead** rather than plan
+   blocked work — the lead defers it and admits something else. Say which PR gates it and why.
+   Note that ordering can cut both ways: when two issues in a family touch the same scan logic, the
+   one that *narrows* behaviour usually has to merge before the one that *widens* it.
+3. **Create the branch + draft PR with the helpers** (they encode the CLAUDE.md ritual):
    - `branch=$(bin/start-issue <type> <N>)` — `<type>` ∈ `feat|fix|chore|docs`; branches off a
-     fresh `main`, seeds an empty commit, pushes, leaves the primary checkout on the branch.
+     fresh `origin/main`, seeds an empty commit, pushes. It never checks anything out, so the
+     shared primary checkout stays free for concurrent agents — you have nothing to release
+     afterwards.
    - Write the **implementation plan** (below) to a file, then
      `PR_DRAFT=1 bin/open-pr <N> "<title>" plan.md` — opens the draft PR, mirrors the issue's
      kind/area/tier labels, guarantees `Closes #<N>`, appends the footer, assigns the maintainer.
      (`open-pr` assigns, it does **not** request review — correct, since auto-merge candidates
      squash before a human looks; the lead requests review only on escalation.)
-   - **`git checkout main`** to release the branch — the coder needs it free to add a worktree.
-3. Post `🤖 **[planner]** plan posted — see PR body. Ready for plan-review.` on the PR.
-4. `SendMessage` the lead: planning done, PR #<num> ready for plan-review.
+4. Post `🤖 **[planner]** plan posted — see PR body. Ready for plan-review.` on the PR.
+5. `SendMessage` the lead: planning done, PR #<num> ready for plan-review.
+
+If a second planner is active, reconcile before starting: an already-open draft PR for the issue
+means it is planned — say so and take the next one rather than competing.
 
 ## What a good plan contains
 

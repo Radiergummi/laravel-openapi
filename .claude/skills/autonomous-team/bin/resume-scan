@@ -4,7 +4,7 @@
 # Output: JSON { phase: [ {number, title, kind, url} ] } — the lead rebuilds tasks from this.
 set -euo pipefail
 
-PHASES='agent:planning agent:plan-review agent:coding agent:in-review agent:survey agent:needs-human'
+PHASES='agent:planning agent:plan-review agent:coding agent:in-review agent:docs agent:survey agent:needs-human'
 
 emit_for_label() {
   local label="$1"

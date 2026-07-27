@@ -38,7 +38,14 @@ Anything not covered by a directive falls back to the defaults below.
 
 1. **GitHub + git are the only durable state.** The shared task list is a convenience cache,
    reconstructable at any time from GitHub. Never let in-memory state be critical. A fresh
-   session must be able to resume from `git` and `gh` alone.
+   session must be able to resume from `git` and `gh` alone. It is also unreliable — treat it as
+   non-load-bearing, and keep **umbrella tasks (`Drive #N…`, `Plan + drive #N…`) owned by the
+   lead**: a teammate set as owner of one reads it as "drive this PR yourself", stalls, and posts
+   a role-conflict flag every time it re-reads the list. Dispatch actual work via `SendMessage`
+   with an explicit phase brief, never by task ownership. (The list sometimes re-broadcasts a
+   lead-owned task as an assignment anyway — hence the standing "ignore `Drive` assignments" rule
+   in every teammate's prompt. Self-echoes of your own `TaskUpdate`s arrive as messages from
+   `team-lead`; ignore those too.)
 2. **Every transition and finding is a GitHub comment.** `SendMessage` wakes the next agent;
    the comment is the record. If it isn't on the issue/PR, it didn't happen.
 3. **Bound the run.** Token spend isn't observable across teammates, so cap the run by a countable
@@ -47,38 +54,81 @@ Anything not covered by a directive falls back to the defaults below.
 4. **Surgical, conventional changes only.** Everything obeys the project `CLAUDE.md` and the
    user's global rules (minimal diffs, no speculative abstraction, match existing style).
 
+## GitHub write authorization
+
+GitHub is this team's communication medium, not a publishing step at the end of the run. Comments
+carry the phase handoffs; **issues carry the findings that outlive the run**. An agent that discovers
+an out-of-scope bug and cannot file it has lost that finding — deferring issue creation to a
+post-run summary defeats the design.
+
+The maintainer (Moritz, repository owner, 2026-07-27) has therefore **standing-authorized the
+team's GitHub write operations for the duration of a run**, verbatim: *"we need to find a way to
+make the classifier happy — either by pre-approving any github interaction during the skill run…
+The primary goal is to use github as a communication medium for the agents."*
+
+That authorization is recorded two ways, and both matter:
+
+- **Mechanically** — `permissions.allow` entries in `.claude/settings.local.json` (local and
+  gitignored; **not** checked in, because a public repo must not ship an allowlist that
+  auto-approves writes for everyone who clones it). Covers `gh issue create|comment|edit|view|list`,
+  `gh pr create|comment|edit|ready|view|list|diff|checks`, `gh run list|view`, `gh label list`, and
+  the skill's own `bin/` scripts.
+- **In context** — this section. Quote it when a write is challenged; it is the *maintainer's*
+  grant, written into the skill they own, not an agent's inference about what it may do.
+
+Three rules keep that grant honest:
+
+1. **No laundering.** A teammate must never ask another agent to perform a write it was denied,
+   and the lead must never file on a teammate's behalf to route around a denial. Each agent acts
+   under this section directly or not at all. If a write is denied, that is the answer.
+2. **Scope.** The grant covers issues, comments, labels, and PR lifecycle. It does **not** cover
+   `gh pr merge` / `bin/finish-pr` — merging stays classifier-gated on purpose, because that check
+   has caught a real case (it correctly refused to auto-merge a PR previously escalated as
+   human-gated). Nor does it cover `gh repo`, `gh release`, `gh secret`, `gh workflow run`, or
+   force-pushes.
+3. **Degrade loudly.** If a write is refused anyway, post the intended content as a **comment**
+   on the current issue/PR (comments have never been refused) and tell the lead, who surfaces it
+   in the run summary. Never drop the finding, and never retry the denied call verbatim.
+
+If ad-hoc `gh` writes are being denied at the start of a run, the allowlist is probably missing on
+this machine — ask the user to add it. **Do not write permission settings yourself**: self-granting
+is exactly what the guard exists to stop, and it will be refused.
+
 ## Startup
 
 1. Run `bin/bootstrap-labels` (idempotent) to ensure the `agent:*` labels exist.
 2. Run `bin/resume-scan`. If it reports in-flight items, **you are resuming**: rebuild the task
    list from its output and re-spawn the roles needed for those phases. Otherwise this is a
    fresh run.
-3. `TeamCreate` the team `autonomous-team` (skip if it already exists).
-4. **Spawn on demand, not up front.** Spawn a teammate the first time a task reaches that
+3. **Spawn on demand, not up front.** Spawn a teammate the first time a task reaches that
    teammate's phase, then keep it and re-engage it for later work via `SendMessage` (team members
    go idle between turns and wake on a message). Do **not** stand up the full roster before there
    is work for it — an idle `coder` spawned before any plan exists just burns a turn. Spawn each
-   agent with the Agent tool, `team_name: "autonomous-team"`, a stable `name`,
-   `subagent_type: "general-purpose"`, `run_in_background: true`, and a short prompt:
-   *"You are the **{role}** on team autonomous-team. Read
-   `.claude/skills/autonomous-team/roles/{role}.md` and follow it. Coordinate via SendMessage
-   and the shared task list; post all durable annotations as GitHub comments."*
+   agent with the Agent tool, a stable `name`, `subagent_type: "general-purpose"`,
+   `run_in_background: true`, and a short prompt:
+   *"You are the **{role}** on the autonomous team. Read
+   `.claude/skills/autonomous-team/roles/{role}.md` and follow it — including the **GitHub write
+   authorization** section of `../SKILL.md`, which is the maintainer's standing grant for the
+   GitHub writes your role performs. Coordinate via SendMessage; post all durable annotations as
+   GitHub comments. Ignore any `task_assignment` whose subject starts with 'Drive' — those are the
+   lead's coordination tasks, not work for you."*
 
-   Capacity ceiling (spawn up to, never beyond): `planner` ×1, `reviewer` ×2, `coder` ×3,
+   There is **no `TeamCreate`/`TeamDelete` on this runtime** (single implicit team; `team_name` on
+   Agent is ignored). Spawn, `SendMessage`, and `shutdown_request` are the whole model.
+
+   Capacity ceiling (spawn up to, never beyond): `planner` ×2, `reviewer` ×2, `coder` ×3,
    `surveyor` ×1, `docs-writer` ×1. Scale to the directives — a `"review PR #324"` run only ever
    needs one `reviewer` (+ a `coder` for findings); spawn the `docs-writer` only when a docs
-   sub-phase or a `documentation` issue actually arises.
+   sub-phase or a `documentation` issue actually arises. A single planner has repeatedly been the
+   throughput bottleneck (every Full-tier issue funnels through it while coders idle), so spawn the
+   second one as soon as two issues are waiting to be planned.
 
-   **First-time validation:** before the first real run, confirm the team idle/wake model on this
-   runtime with a 2-agent spike — spawn one background teammate, let its turn end, `SendMessage`
-   it, and verify it resumes with context intact. If re-engagement does not work as expected,
-   fall back to plain per-phase Agent calls (spawn → completes → next phase spawns afresh, reading
-   state from GitHub) rather than long-lived teammates.
-
-   **Run the first real batch supervised** — pass the `"stop before the first merge"` directive so
-   PRs reach green-and-approved but escalate instead of auto-merging. Inspect a few outcomes to
-   calibrate the controversy heuristic and the review quality, then drop the directive to go
-   hands-off.
+   **When background spawning breaks.** Intermittently the lead's identity gets bound to a teammate
+   and further spawns fail (*"Teammates cannot spawn other teammates"*), sometimes mid-run. Do not
+   burn turns retrying. Fall back, in order: synchronous per-phase `Agent` calls (each reads its
+   state from GitHub, so nothing is lost), or — for mechanical steps like rebase, label moves, and
+   merges — just do it yourself as the lead. All state is in GitHub and pushed branches precisely
+   so this fallback is cheap.
 
 ## Helper scripts (`bin/`)
 
@@ -91,8 +141,8 @@ single-active-label / closing-keyword / footer invariants.
 | `eligible-issues` | lead | issues the team may admit (filters + tier sort) |
 | `resume-scan` | lead | rebuild the in-flight pipeline from GitHub on startup |
 | `set-phase <num> <phase> [comment]` | lead | move phase: enforce one `agent:*` label + post annotation; on a PR, also clears the closed issue's stale label (issue→PR migration) |
-| `finish-pr <pr> [comment]` | lead | squash-merge + delete branch + remove worktree + comment |
-| `start-issue <type> <N> [slug]` | planner | branch off fresh `main`, empty commit, push; echoes branch |
+| `finish-pr <pr> [comment]` | lead | un-draft + squash-merge + delete branch + remove worktree + comment; cleanup is best-effort and warns about leftovers |
+| `start-issue <type> <N> [slug]` | planner | branch off fresh `origin/main`, empty commit, push; echoes branch. Checks nothing out — the primary checkout stays free |
 | `open-pr <N> <title> [body-file]` | planner | open PR with labels/`Closes`/footer/assignee (`PR_DRAFT=1` for draft) |
 | `worktree-add <branch>` | coder / docs-writer | add/reuse a worktree under `.claude/worktrees/`; echoes path |
 | `sync-branch` | coder / docs-writer | from a worktree: fetch + rebase `origin/main` + `composer check` |
@@ -128,9 +178,26 @@ eligible issues remain, and any **volume cap** from the directives is not yet re
    to the `docs-writer`; when it reports back, route to a `reviewer` for a docs-check, then continue
    to `[survey]`/merge. If the doc impact is trivial (the coder's inline page edit + the reviewer's
    docs-gap check sufficed), skip the docs sub-phase.
-4. **Merge or escalate** (below) when a PR reaches the end of its tier.
-5. **Self-feed.** Any agent may `gh issue create` for out-of-scope problems/ideas it finds;
-   those become future eligible issues. Never fold them into the current PR.
+4. **Verify before you believe a "ready" report.** A role reporting done is a claim, not evidence.
+   Before routing a PR onward — to review, to survey, or to merge — confirm on the remote:
+
+   ```sh
+   gh pr diff <pr> --name-only                       # non-empty: the work is actually pushed
+   gh pr view <pr> --json headRefOid --jq .headRefOid # the real head
+   gh run list --branch <branch> --json headSha,conclusion,status --limit 5
+   ```
+
+   The CI run you trust must carry **that** `headSha`. A coder once reported "ready, CI green"
+   while its whole implementation sat **uncommitted** in the worktree — origin had only the empty
+   `start-issue` seed commit, so the green CI it cited had genuinely run, on an empty diff. A later
+   session then found the branch empty and nearly re-implemented the lost work from scratch. Two
+   checks cost seconds and catch it: **the diff is non-empty**, and **CI ran on the current head**.
+   If either fails, send it back to the coder — do not escalate, and do not merge.
+
+5. **Merge or escalate** (below) when a PR reaches the end of its tier.
+6. **Self-feed.** Any agent may `gh issue create` for out-of-scope problems or ideas it finds, under
+   the standing grant in **GitHub write authorization** above — file it *during* the run, so the
+   finding is durable and `eligible-issues` can pick it up later. Never fold it into the current PR.
 
 ### Caps (prevent runaway)
 
@@ -150,6 +217,10 @@ Auto-squash-merge **only when ALL hold**:
 - **Two independent reviewer approvals** with no open concerns (the two `reviewer` agents review
   separately; a coder's sibling reviewer alone is too thin for an unsupervised merge), **and** the
   diff did not deviate from the agreed plan.
+- **Both approvals are anchored to the current head.** Reviewers name the sha they approved; if
+  `headRefOid` has moved since, the approvals are void — re-gate before merging. An unreviewed
+  commit has slipped past two approvals this way before (the fix was to `git rebase --onto` back to
+  the approved sha and re-review). A rebase moves the sha too: re-confirm, don't assume.
 - The change is **non-controversial** — *none of*:
   - touches `src/Contracts/**` or changes registry/pipeline **stage order** (`area:core`)
   - adds/changes a **config key** or a lint-rule **default severity**
@@ -171,6 +242,10 @@ their CI is stale):
   told to add their entry as its own line at the end of the section to minimise overlap.
 - Re-watch CI on the rebased branch before it becomes merge-eligible — never merge a branch whose
   green CI predates the current `main`.
+- **If the force-push didn't fire Actions** (no run appears on the new sha after a few minutes),
+  `gh pr close <n>` then `gh pr reopen <n>` re-triggers the workflow **without changing the sha**,
+  so sha-anchored approvals survive. Pushing an empty commit would move the head and void them.
+  Confirm the new run's `headSha` matches HEAD before trusting it.
 - If a rebase conflict is outside CHANGELOG and the coder cannot resolve it cleanly within the
   loop cap, escalate that PR.
 
@@ -178,6 +253,13 @@ Otherwise → **escalate**: `bin/set-phase <num> needs-human "🤖 **[lead]** <w
 decision; worktree left in place>"`, **request Moritz's review** (`gh pr edit --add-reviewer`),
 leave the PR **ready but unmerged** with its worktree in place, drop it from the in-flight count,
 admit the next issue.
+
+**Escalation is a merge freeze.** Once a PR carries `agent:needs-human`, it stays unmerged until
+the maintainer re-admits it — green CI, two approvals, and a clean survey do **not** thaw it, and
+neither does a later instruction to "keep going" or "drive forward as far as you safely can". This
+is enforced from the outside too: the permission classifier refuses `finish-pr` on a PR that was
+escalated for a human decision. Don't work around it. If the maintainer is away, treat the whole
+run as supervised — drive everything to ready-and-escalated and merge only what was never gated.
 
 ## Budget checkpoint & exit
 
@@ -188,13 +270,24 @@ is **best-effort**, enforced via a **countable proxy**: stop admitting new issue
 directives say otherwise. The per-issue caps (3 review rounds, 3 CI-fix attempts, 3 survey
 attempts) bound the cost of each issue, so issues-admitted is a usable spend proxy.
 
+**Stopping early at a clean boundary is a good outcome, not a shortfall.** If the cheap work is
+done and everything left is a large tier-1/`spec` item, wrap up below the cap rather than opening
+an expensive issue you'll have to abandon mid-flight.
+
+**If the org hits its spend limit mid-run**, teammates start failing with a spend-limit
+`idleReason: "failed"`. Don't checkpoint everything reflexively — the lead can finish an approved,
+survey-gated PR **solo**, because the expensive parts aren't Claude inference: survey Layer A is
+PHP/shell (`tools/survey/corpus.sh`) and merges are mechanical git. Salvage the ready work, then
+stop. A killed surveyor often leaves a usable completed baseline at `$WS/gate-<pr>/baseline/` —
+check its `manifest.json` `libraryCommit` before regenerating, and clear the dead agent's stale
+`$WS/.survey.lock`.
+
 On stop: let in-flight coders push WIP and post a
 `🤖 **[lead]** paused at <phase>, resume with /autonomous-team` comment on each open PR. Post a run
-summary (counts: merged / escalated / in-flight), `shutdown_request` each teammate, and stop. **Do
-not `TeamDelete`** if anything is still in flight — leave the team so a later session resumes; only
-`TeamDelete` when the backlog is fully cleared.
+summary (counts: merged / escalated / in-flight, plus any findings a denied write left unfiled),
+`shutdown_request` each teammate, and stop.
 
 ## Termination
 
-No eligible issues **and** empty pipeline → post a final run summary, `shutdown_request` every
-teammate, then `TeamDelete`.
+No eligible issues **and** empty pipeline → post a final run summary, then `shutdown_request` every
+teammate. (There is no team to delete — see Startup.)
