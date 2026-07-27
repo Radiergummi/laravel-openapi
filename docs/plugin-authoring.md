@@ -287,10 +287,19 @@ final readonly class JsonApiPrimaryResponseResolver implements PrimaryResponseRe
             return null;
         }
 
+        if (
+            $target->authoredStatus !== null
+            && ($target->authoredStatus < 200 || $target->authoredStatus >= 300)
+        ) {
+            // The action authored a status that cannot carry a resource body, so this
+            // response does not exist: emit nothing, and register no component for it.
+            return null;
+        }
+
         // $target->resourceClass is the JsonResource subclass; $target->isCollection
         // tells you whether to wrap in a list response.
         $response = new OA\Response([
-            'response' => '200',
+            'response' => (string) ($target->authoredStatus ?? 200),
             'description' => 'OK',
             // 'content' => …
         ]);
@@ -299,6 +308,15 @@ final readonly class JsonApiPrimaryResponseResolver implements PrimaryResponseRe
     }
 }
 ```
+
+`$target->authoredStatus` carries whatever status the action wrote on a
+`response()->json(<resource>, <status>)` wrapper — **including a non-2xx one**, and
+including `204`/`205`, which are allowed no content at all. It is not pre-filtered to
+statuses a body may ride on, so a resolver must decide that itself: refuse the ones that
+cannot, ahead of registering a component schema or emitting a finding, or the document
+ends up with a success response the action never returns. `null` means no status was
+authored, none was statically readable, or several returns disagreed — apply your
+convention's default.
 
 The container resolves it to `Plugins\ApiResources\Support\ResourceClassLocator` — the
 binding lives in `OpenApiServiceProvider::register()` and is always-on,

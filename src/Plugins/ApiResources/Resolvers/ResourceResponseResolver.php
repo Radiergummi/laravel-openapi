@@ -92,13 +92,14 @@ final readonly class ResourceResponseResolver implements PrimaryResponseResolver
     }
 
     /**
-     * Whether a status may carry a resource envelope: a 2xx with a body. A `204` is excluded
-     * because a body-less status must never carry one; with the Core plugin enabled the inline-JSON
-     * resolver claims that call first, so only a registry assembled without Core reaches here.
+     * Whether a status may carry a resource envelope: a 2xx that is allowed content at all.
+     * `204 No Content` and `205 Reset Content` are excluded because RFC 9110 forbids content on
+     * either; with the Core plugin enabled the inline-JSON resolver claims a `204` first, so only a
+     * registry assembled without Core reaches this method with one.
      */
     private function carriesResourceBody(int $status): bool
     {
-        return $status >= 200 && $status < 300 && $status !== 204;
+        return $status >= 200 && $status < 300 && $status !== 204 && $status !== 205;
     }
 
     /**

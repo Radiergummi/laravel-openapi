@@ -303,6 +303,19 @@ class ReturnExpressionController extends Controller
         return response()->json(NestedAuthorResource::make(Author::query()->firstOrFail()), 422);
     }
 
+    public function jsonWrappedConstantForbiddenStatus(): JsonResponse
+    {
+        return response()->json(
+            NestedAuthorResource::make(Author::query()->firstOrFail()),
+            Response::HTTP_FORBIDDEN,
+        );
+    }
+
+    public function jsonWrappedResetContentStatus(): JsonResponse
+    {
+        return response()->json(NestedAuthorResource::make(Author::query()->firstOrFail()), 205);
+    }
+
     public function jsonWrappedFieldlessForbiddenStatus(): JsonResponse
     {
         return response()->json(FieldlessForbiddenResource::make(Author::query()->firstOrFail()), 403);
@@ -968,6 +981,33 @@ it('yields for a 422 wrapper too, so the rule is not pinned to one status', func
 
     expect($responses['200'])->not->toHaveKey('content')
         ->and($responses)->toHaveKey('422')
+        ->and($spec['components']['schemas'] ?? [])->not->toHaveKey('NestedAuthorResource');
+});
+
+it('yields for a non-2xx class constant, not only a bare integer literal', function (): void {
+    Route::get('/json-constant-forbidden', [ReturnExpressionController::class, 'jsonWrappedConstantForbiddenStatus']);
+
+    $spec = generateSpec();
+    $responses = $spec['paths']['/json-constant-forbidden']['get']['responses'];
+
+    // Dropping the range filter widened the read for every status shape, so the constant path
+    // (covered at 2xx by the 202 case) needs its own non-2xx counterpart.
+    expect($responses['200'])->not->toHaveKey('content')
+        ->and($responses)->toHaveKey('403')
+        ->and($spec['components']['schemas'] ?? [])->not->toHaveKey('NestedAuthorResource');
+});
+
+it('yields for a 205, which may no more carry a body than a 204', function (): void {
+    Route::get('/json-reset-content', [ReturnExpressionController::class, 'jsonWrappedResetContentStatus']);
+
+    $spec = generateSpec();
+    $responses = $spec['paths']['/json-reset-content']['get']['responses'];
+
+    // Unlike a 204, nothing downstream claims the call: Core's inline-JSON resolver yields for a
+    // resource argument, so the operation keeps only its body-less default. Losing the status is
+    // the lesser error, since a 205 carrying a resource envelope is invalid either way.
+    expect(successStatuses($responses))->toBe([200])
+        ->and($responses['200'])->not->toHaveKey('content')
         ->and($spec['components']['schemas'] ?? [])->not->toHaveKey('NestedAuthorResource');
 });
 

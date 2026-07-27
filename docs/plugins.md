@@ -273,8 +273,9 @@ Recognised shapes:
   status that cannot carry a resource body makes the resource path **yield
   entirely**: a **non-2xx** status (`response()->json(X::make($m), 403)`) documents
   no resource anywhere, leaving the authored error status to the error subsystem,
-  and a `204` is claimed by the inline-JSON resolver first and documented as a
-  body-less `204`, since a resource envelope must not ride on a contentless status.
+  and the contentless successes `204` and `205` document no resource either, since
+  an envelope must not ride on a status RFC 9110 allows no content. A `204` is
+  claimed by the inline-JSON resolver first and documented as a body-less `204`.
   When several returns disagree on the status the claim is dropped rather than the
   resource, so an action guarding with a `403` beside a legitimate success branch
   keeps its schema under the conventional status.
