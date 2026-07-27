@@ -28,6 +28,8 @@ use function Radiergummi\OpenApi\is_undefined;
  *   check requires.
  * - A schema carrying no constraints at all is left untouched: it already permits null, and a
  *   `oneOf` would in fact forbid it, since null matches both branches and exactly-one then fails.
+ * - A schema that already permits null (a `'null'` type, or a `oneOf`/`anyOf` branch typed `null`)
+ *   is likewise left untouched, so applying the rule twice is the same as applying it once.
  *
  * @internal
  */
@@ -84,12 +86,54 @@ final class NullableSchema
      */
     public static function applyTo(OA\Schema $target): void
     {
+        // Applying the rule twice would nest the wrapper, and null then matches both outer
+        // branches: `oneOf` demands exactly one, so the schema would accept nothing at all.
+        if (self::isAlreadyNullable($target)) {
+            return;
+        }
+
         // Keywords alongside a $ref are ignored in OAS 3.1, so a ref is always split, never widened.
         if (is_undefined($target->ref) && self::widenType($target)) {
             return;
         }
 
         self::split($target);
+    }
+
+    /**
+     * Reports whether the schema already permits null, in either form the rule produces.
+     */
+    private static function isAlreadyNullable(OA\Schema $target): bool
+    {
+        if (self::isNullType($target->type)) {
+            return true;
+        }
+
+        foreach ([$target->oneOf, $target->anyOf] as $branches) {
+            if (!is_defined($branches) || !is_array($branches)) {
+                continue;
+            }
+
+            foreach ($branches as $branch) {
+                if ($branch instanceof OA\Schema && self::isNullType($branch->type)) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Reports whether a `type` member admits null, as either the bare type or a type array member.
+     */
+    private static function isNullType(mixed $type): bool
+    {
+        if (!is_defined($type)) {
+            return false;
+        }
+
+        return $type === 'null' || (is_array($type) && in_array('null', $type, strict: true));
     }
 
     /**
@@ -114,11 +158,6 @@ final class NullableSchema
 
         if (!is_defined($type) || !is_array($type)) {
             return false;
-        }
-
-        // Already nullable, whatever the other members are.
-        if (in_array('null', $type, strict: true)) {
-            return true;
         }
 
         foreach ($type as $member) {
