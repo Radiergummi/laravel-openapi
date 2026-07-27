@@ -148,11 +148,10 @@ inline value list instead.
 ## Nullable schemas
 
 OpenAPI 3.1 removed the `nullable` keyword: nullability is part of a schema's
-type, not a flag beside it. One rule shapes nullable schemas across the
-document, whatever made them nullable — a `?Dto` return type, a nullable Spatie
-`Data` property, an Eloquent `?T` `@property` tag, an API-resource field, a path
-or query parameter, a `nullable` validation rule, or an explicit
-`nullable: true` on a field attribute:
+type, not a flag beside it. One rule shapes the nullable schemas that come from
+a `?Dto` return type, a nullable Spatie `Data` property, an Eloquent `?T`
+`@property` tag, an API-resource field, a path or query parameter, a `nullable`
+validation rule, and an explicit `nullable: true` on a field attribute:
 
 | The schema being made nullable | Result |
 |---|---|
