@@ -13,7 +13,7 @@ it('matches the expected input', function (IdentifierCase $case, string $input):
     'Dot: kebab in last segment' => [IdentifierCase::Dot, 'api.v0.projects.list-active'],
     'Dot: kebab in multiple segments' => [IdentifierCase::Dot, 'api.v0.user-accounts.list-active'],
     'Dot: kebab-only, no dots' => [IdentifierCase::Dot, 'auth-callback'],
-    'Dot: matchory auth.resolve-account' => [IdentifierCase::Dot, 'auth.resolve-account'],
+    'Dot: kebab in two-segment id' => [IdentifierCase::Dot, 'auth.reset-password'],
     'Pascal: single-word' => [IdentifierCase::Pascal, 'Users'],
     'Pascal: multi-word' => [IdentifierCase::Pascal, 'ApiV0ProjectsIndex'],
     'Train: single-word' => [IdentifierCase::Train, 'Api'],

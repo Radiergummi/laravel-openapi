@@ -13,7 +13,7 @@ use Radiergummi\OpenApi\Lint\Rules\ExternaldocsInvalidUrl;
  */
 final class InvalidExternalDocsController
 {
-    #[ExternalDocs(url: 'https://docs.matchory.com/search')]
+    #[ExternalDocs(url: 'https://docs.example.com/search')]
     public function withValidUrl(): JsonResponse
     {
         return response()->json();

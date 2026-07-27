@@ -8,7 +8,7 @@ use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
 /**
- * Mirrors matchory-webapp's `UpdateCurrentCustomerRequest`: rules() reads `$this->user()` to
+ * Mirrors a real-world FormRequest whose rules() reads `$this->user()` to
  * scope a `unique` rule.
  */
 class UserBoundFormRequest extends FormRequest

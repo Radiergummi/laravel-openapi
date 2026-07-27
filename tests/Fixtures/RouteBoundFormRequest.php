@@ -8,7 +8,7 @@ use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
 /**
- * Mirrors matchory-webapp's `ContactInfoCallbackRequest`: rules() reads a route-bound model and
+ * Mirrors a real-world FormRequest whose rules() reads a route-bound model and
  * uses one of its properties inside a `Rule::in([...])`.
  */
 class RouteBoundFormRequest extends FormRequest
