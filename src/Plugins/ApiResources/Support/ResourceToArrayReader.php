@@ -392,10 +392,10 @@ final class ResourceToArrayReader
             return $nested;
         }
 
-        $valueObjectProperty = $this->resolveValueObjectProperty($name, $value, $optional, $resourceClass);
+        $wrappedObjectProperty = $this->resolveWrappedObjectProperty($name, $value, $optional, $resourceClass);
 
-        if ($valueObjectProperty !== null) {
-            return $valueObjectProperty;
+        if ($wrappedObjectProperty !== null) {
+            return $wrappedObjectProperty;
         }
 
         $modelProperty = $this->resolveModelProperty($name, $value, $optional, $resourceClass, $modelClass);
@@ -688,8 +688,8 @@ final class ResourceToArrayReader
 
     /**
      * The property schema behind a `->format(...)` receiver, from the wrapped model, from the
-     * `@mixin`/`@extends` value object, or from a value object the resource declares as a typed
-     * property. Null when no source types the receiver.
+     * `@mixin`/`@extends` value object, or from the model or value object the resource declares as
+     * a typed property. Null when no source types the receiver.
      *
      * @param class-string<JsonResource> $resourceClass
      * @param null|class-string<Model>   $modelClass
@@ -709,7 +709,7 @@ final class ResourceToArrayReader
             return $property ?? $this->valueObjectProperty($resourceClass, $fieldName);
         }
 
-        return $this->wrappedValueObjectProperty($receiver, $resourceClass);
+        return $this->wrappedObjectProperty($receiver, $resourceClass);
     }
 
     /**
@@ -748,13 +748,13 @@ final class ResourceToArrayReader
      *
      * @throws ReflectionException
      */
-    private function resolveValueObjectProperty(
+    private function resolveWrappedObjectProperty(
         string $name,
         Expr $value,
         bool $optional,
         string $resourceClass,
     ): ?InferredResourceField {
-        $property = $this->wrappedValueObjectProperty($value, $resourceClass);
+        $property = $this->wrappedObjectProperty($value, $resourceClass);
 
         if ($property === null) {
             return null;
@@ -766,15 +766,16 @@ final class ResourceToArrayReader
     }
 
     /**
-     * The shape (A) property behind `$this-><wrappedProp>-><field>`, typed from the value object
-     * declared as `<wrappedProp>`'s type on the resource. Null when the expression is not that
-     * shape or the field cannot be typed without guessing.
+     * The shape (A) property behind `$this-><wrappedProp>-><field>`, typed from the class declared
+     * as `<wrappedProp>`'s type on the resource: an Eloquent model's metadata, or a value object's
+     * public property. Null when the expression is not that shape or the field cannot be typed
+     * without guessing.
      *
      * @param class-string<JsonResource> $resourceClass
      *
      * @throws ReflectionException
      */
-    private function wrappedValueObjectProperty(Expr $value, string $resourceClass): ?OA\Property
+    private function wrappedObjectProperty(Expr $value, string $resourceClass): ?OA\Property
     {
         if (
             !$value instanceof PropertyFetch
@@ -786,13 +787,22 @@ final class ResourceToArrayReader
             return null;
         }
 
-        $valueObjectClass = $this->propertyTypeClass($resourceClass, $value->var->name->toString());
+        $wrappedClass = $this->propertyTypeClass($resourceClass, $value->var->name->toString());
 
-        if ($valueObjectClass === null) {
+        if ($wrappedClass === null) {
             return null;
         }
 
-        return $this->publicPropertyTypeReader->propertyFor($valueObjectClass, $value->name->toString());
+        $fieldName = $value->name->toString();
+
+        // A model declares its attributes in metadata rather than as typed properties, so the model
+        // reader answers for it. The public-property read stays as the fallback, mirroring the
+        // bare-read precedence, so a model that does declare a typed property still resolves.
+        $property = is_a($wrappedClass, Model::class, allow_string: true)
+            ? $this->modelToSchema->propertyFor($wrappedClass, $fieldName)
+            : null;
+
+        return $property ?? $this->publicPropertyTypeReader->propertyFor($wrappedClass, $fieldName);
     }
 
     /**

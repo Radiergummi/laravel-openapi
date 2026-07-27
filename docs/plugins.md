@@ -110,7 +110,14 @@ class BookingResource extends JsonResource
   declared `public` typed properties), `$this->field` types from that
   property's type instead. A `$this->wrapped->field` read — where `$wrapped` is
   a typed property on the resource — likewise types from the value object
-  declared as `$wrapped`'s type. An `array` / `list<T>` / `array<string, T>` /
+  declared as `$wrapped`'s type. When `$wrapped` is declared as an Eloquent
+  **Model**, the field types from that model's metadata (`$casts`,
+  `@property` / `@property-read` tags, typed `$appends` accessors) exactly as a
+  `@mixin` model read does, with the statically-typed public property as the
+  fallback; a field naming a relation resolves to a `$ref` to the related
+  model's schema, while the relation *hop*
+  (`$this->wrapped->relation->field`) stays **unconstrained**. An `array` /
+  `list<T>` / `array<string, T>` /
   `array{…}` property, or one refined by a `@var` tag, types as the matching
   array / map / object schema. Properties with no declared type, a
   union/intersection type, or a type that would only map to a placeholder stay
@@ -129,7 +136,8 @@ class BookingResource extends JsonResource
   was there; `?->format(…)` keeps it nullable. The date evidence may come from
   the wrapped model or from a value object's statically-typed public property —
   both the `@mixin` / `@extends` value object and a `$this->wrapped->field`
-  read. Receivers neither source types as a date, a model relation hop
+  read, whether `$wrapped` is declared as a value object or as a Model.
+  Receivers neither source types as a date, a model relation hop
   (`$this->parent->published_at->format(…)`) among them, stay
   **unconstrained**.
 - Literal scalars and arrays type themselves; nested literal arrays become
