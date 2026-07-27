@@ -352,18 +352,17 @@ constraints:
 
 ### The `nullable` rule
 
-OpenAPI 3.1 dropped the `nullable` keyword, so a `nullable` rule is expressed in
-one of three ways, depending on what the field's other rules established:
+OpenAPI 3.1 dropped the `nullable` keyword, so a `nullable` rule never emits it.
+What it produces depends on what the field's other rules established: a scalar
+type widens (`'name' => ['nullable', 'string']` → `type: [string, 'null']`),
+anything else carrying constraints splits into a `oneOf` (`['nullable',
+'min:1']` → `oneOf: [{minLength: 1}, {type: 'null'}]`), and a bare
+`['nullable']` produces an empty schema, which already accepts null.
 
-| The field's other rules give it | `nullable` produces |
-|---|---|
-| a scalar type (`string`, `integer`, `number`, `boolean`) | `type: [<type>, 'null']` |
-| a structured type, a `$ref`, or constraints without a type (`['nullable', 'min:1']`) | `oneOf: [<the constraints>, {type: 'null'}]` |
-| nothing at all (`['nullable']` on its own) | nothing — an unconstrained schema already permits null |
-
-Documentation keywords (`description`, `example`, `default`, `deprecated`, …)
-stay on the outer schema in the `oneOf` form; they describe the field, not its
-non-null branch.
+The rule is not specific to validation rules; it shapes nullable schemas
+throughout the document. It is stated in full — including where documentation
+keywords land when a schema splits — under
+[Auto-derivation → Nullable schemas](auto-derivation.md#nullable-schemas).
 
 ### PATCH semantics
 

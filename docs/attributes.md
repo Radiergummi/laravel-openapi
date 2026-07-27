@@ -71,6 +71,11 @@ type), `default`, `nullable`, `enum`, `minimum` / `maximum`,
 `RequestField` has no `readOnly`, `PathParam` only `description` / `example` /
 `format` / `pattern` / `x` / `additionalProperties`).
 
+`nullable: true` never emits the OpenAPI 3.0 `nullable` keyword; it applies the
+3.1 shape the rest of the document uses, and is a no-op when the field is
+already nullable. See [Auto-derivation → Nullable
+schemas](auto-derivation.md#nullable-schemas).
+
 ### Vendor extensions (`x-*`)
 
 The `x:` argument attaches OpenAPI [specification extensions](https://spec.openapis.org/oas/v3.1.0#specification-extensions)
