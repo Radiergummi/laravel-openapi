@@ -547,9 +547,20 @@ it('falls back to the statically-typed public property of a Model receiver', fun
 
     $properties = resourceComponent(generateSpec(), 'TypedModelPropertyResource')['properties'];
 
-    // Model metadata is consulted first, so this guards against the precedence being inverted:
-    // the model has nothing to say about `slug`, and the public property answers instead.
+    // The model has no metadata for `slug`, so reaching a type at all proves the public-property
+    // read is still consulted for a Model receiver. Only one reader answers here, so this says
+    // nothing about their order; the next test covers that.
     expect($properties['public_typed_property']['type'])->toBe('string');
+});
+
+it('prefers model metadata over the public property when both type the field', function (): void {
+    Route::get('/typed-model-property', [ToArrayInferenceController::class, 'typedModelProperty']);
+
+    $properties = resourceComponent(generateSpec(), 'TypedModelPropertyResource')['properties'];
+
+    // `legacyCode` is cast to integer and declared `public string`, so the two readers disagree and
+    // the winner names the one that ran first. Inverting the precedence turns this key into a string.
+    expect($properties['both_sources_typed']['type'])->toBe('integer');
 });
 
 // endregion

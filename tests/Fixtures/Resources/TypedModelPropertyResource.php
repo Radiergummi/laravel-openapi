@@ -37,6 +37,7 @@ class TypedModelPropertyResource extends JsonResource
             'relation_hop' => $this->article->parent->published_at,
             'relation_single_hop' => $this->article->parent,
             'public_typed_property' => $this->legacy->slug,
+            'both_sources_typed' => $this->legacy->legacyCode,
             'published_at_formatted' => $this->article->published_at->format(DATE_ATOM),
             'release_day' => $this->article->release_date->format('Y-m-d'),
             // @phpstan-ignore nullsafe.neverNull (reading nullability off the call is the case under test)
