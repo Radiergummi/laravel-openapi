@@ -60,9 +60,22 @@ Review the pushed diff adversarially. Reject unless **all** hold:
 - **No scope creep / no deviation from the agreed plan** (if it deviated, the coder must have
   documented why as a PR comment).
 
+- **Mutation/fixer code needs an end-to-end golden, not just unit tests.** If the change rewrites
+  source (the AST `Fix` backend, a code fixer, anything that applies edits), demand a test that runs
+  the *real* mutation over a real file and asserts the resulting text. Unit tests here have a habit
+  of encoding the author's mental model rather than the behaviour: a shipped fix-conflict detector
+  once passed a green suite while silently corrupting source, because every unit test asserted the
+  same wrong model. Only the E2E golden caught it.
+
 Post findings as a numbered list: `🤖 **[reviewer]** review round <n> — <k> findings:` each with
-`file:line` and what's wrong. If clean, post `🤖 **[reviewer]** review round <n>: approved, no
-concerns.` Then `SendMessage` the responsible coder (findings) or the lead (approved).
+`file:line` and what's wrong. If clean, post
+`🤖 **[reviewer]** review round <n>: approved at <sha>, no concerns.`
+Then `SendMessage` the responsible coder (findings) or the lead (approved).
+
+**Always name the sha you approved** (`gh pr view <pr> --json headRefOid`). Your approval covers
+that diff and nothing else — the lead voids it if the head moves, which is what stops an unreviewed
+commit from riding in behind two approvals. If you're re-reviewing after a rebase, re-state the new
+sha explicitly rather than referring back to your earlier approval.
 
 The lead enforces the 3-round cap. If you and the coder can't converge, say so explicitly so the
 lead escalates to a human.

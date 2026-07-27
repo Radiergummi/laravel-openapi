@@ -1,11 +1,18 @@
 #!/usr/bin/env bash
 # Kick off the draft-PR ritual for one issue (CLAUDE.md development workflow):
-# branch from a fresh main, seed an empty commit so the branch has a diff, push.
+# branch from a fresh origin/main, seed an empty commit so the branch has a diff, push.
 # The planner follows this with `gh pr create --draft` (or use bin/open-pr later).
+#
+# Leaves the primary checkout untouched — no branch is checked out here, so concurrent
+# agents keep working. The coder gets its own copy via `bin/worktree-add <branch>`.
+# Re-running for an existing branch is a no-op that just echoes it.
 #
 # Usage: bin/start-issue <type> <issue-number> [slug]
 #   <type>  one of: feat | fix | chore | docs
 #   [slug]  optional branch suffix; derived from the issue title when omitted
+#
+# Env:
+#   CO_AUTHOR  trailer identity for the seed commit (default: Claude <noreply@anthropic.com>)
 #
 # Echoes the created branch name on success.
 set -euo pipefail
@@ -33,17 +40,22 @@ fi
 
 branch="${type}/${issue}-${slug}"
 
-# Refuse to clobber uncommitted work — durable state must never be lost silently.
-if ! git diff --quiet || ! git diff --cached --quiet; then
-  echo "error: working tree is dirty; commit or stash before starting a new issue" >&2
-  exit 1
+if git show-ref --quiet "refs/heads/${branch}"; then
+  echo "$branch"
+  exit 0
 fi
 
-git checkout main
-git pull --ff-only
-git checkout -b "$branch"
-git commit --allow-empty -m "${type}: ${title} (#${issue})" \
-  -m "Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
+# Build the branch and its seed commit with plumbing, so nothing is ever checked out
+# here: the primary checkout is shared with concurrent agents, and taking it hostage
+# (or rebasing its `main`) collides with whatever else is running.
+git fetch origin main >/dev/null
+
+base=$(git rev-parse origin/main)
+commit=$(git commit-tree "${base}^{tree}" -p "$base" \
+  -m "${type}: ${title} (#${issue})" \
+  -m "Co-Authored-By: ${CO_AUTHOR:-Claude <noreply@anthropic.com>}")
+
+git branch "$branch" "$commit"
 git push -u origin "$branch"
 
 echo "$branch"

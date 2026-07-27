@@ -50,8 +50,12 @@ annotation atomically — keeping the single-active-label invariant intact. Once
 transition the **PR** number: `set-phase` detects a PR and also clears the stale label from the
 issue(s) it closes, so the phase locus migrates issue → PR with no double-count on `resume-scan`.
 
-Issues carrying any of `blocked`, `deferred`, `spec`, `epic`, `human-task`, or `agent:needs-human`
-are **never** picked up.
+Issues carrying any of `blocked`, `blocked:upstream`, `deferred`, `epic`, `human-task`, or
+`agent:needs-human` are **never** picked up.
+
+`spec` is **not** on that list. Here it means *"OpenAPI-specification work"* — the generation
+behaviour of the library — not *"planning-only issue"*. Nearly the whole backlog carries it, so
+excluding it would leave the team nothing to do. `bin/eligible-issues` is the source of truth.
 
 ## Comment protocol (durable annotations)
 

@@ -6,8 +6,19 @@ and respond to review findings. Read `../reference/state-machine.md` and the pro
 ## When the lead assigns you a `coding` task
 
 1. **Worktree.** `path=$(bin/worktree-add <branch>)` — adds (or reuses) a worktree under
-   `.claude/worktrees/` for the PR's branch and echoes its path. `cd "$path"` and work only there.
-   Never touch `main` or another agent's worktree.
+   `.claude/worktrees/` for the PR's branch and echoes its path. Work only there; never touch
+   `main` or another agent's worktree.
+   - **Your shell's working directory resets between tool calls.** Do not rely on a `cd` from an
+     earlier call — pass the absolute path every time (`git -C "$path" …`, `composer -d "$path" …`,
+     absolute file paths). This is not a style preference: a coder that assumed its `cd` had stuck
+     ran its commits against the *primary* checkout, left its whole implementation uncommitted in
+     the worktree, and reported green CI that had actually run on an empty branch.
+   - **A fresh worktree has no `vendor/`** (it is gitignored, so `git worktree add` doesn't copy
+     it). Run `composer install --no-interaction` inside it before any gate, or `composer check`
+     fails with a confusing "no such file or directory".
+   - If you are *resuming* someone's branch, check `git -C "$path" status --porcelain` and
+     `git -C "$path" stash list` **before** re-implementing — a previous session's work is often
+     sitting there uncommitted, and re-doing it from scratch is how it gets lost for good.
 2. **TDD.** Write the failing test(s) first (per the plan), then the minimal implementation that
    makes them pass. Match surrounding style. No speculative abstraction — minimum code that solves
    the issue; if you write 200 lines and it could be 50, rewrite it.
@@ -34,7 +45,19 @@ and respond to review findings. Read `../reference/state-machine.md` and the pro
 6. **Push frequently** — every meaningful checkpoint, so durable state survives a session
    interruption. Mark the PR **ready** (`gh pr ready`) once local gates pass; then watch remote CI
    (`gh pr checks --watch`) and fix any matrix-only failures before handing to review.
-7. Post `🤖 **[coder]** implemented; local gates green; pushed <sha>. Ready for review.` and
+   - **If you amend, re-verify before pushing.** Amending and *then* making further edits leaves
+     those edits out of the commit — `git -C "$path" show HEAD:<file>` to confirm the commit matches
+     what you intend, and re-amend if it doesn't. A pushed amend that dropped a fix has failed CI
+     on dead code this way.
+7. **Prove it before you claim it.** "Ready" means the work is on the remote, not in your worktree.
+   Confirm all three, then quote the sha:
+   ```sh
+   git -C "$path" status --porcelain                              # empty
+   git -C "$path" diff --numstat origin/main...origin/<branch>    # non-empty
+   gh pr checks <pr>                                              # green, on that same sha
+   ```
+   The lead re-checks this anyway; a false "ready" costs the run a full review cycle.
+8. Post `🤖 **[coder]** implemented; local gates green; pushed <sha>. Ready for review.` and
    `SendMessage` the lead to move it to review.
 
 ## Review-loop rounds
@@ -66,5 +89,8 @@ reviewer will check for it.
 
 ## Out-of-scope discoveries
 
-Found a separate bug or a good idea? `gh issue create` with the right `bug`/`area:*` labels.
-**Do not** fold it into this PR. Mention it in a comment so the lead can queue it later.
+Found a separate bug or a good idea? `gh issue create` with the right `bug`/`area:*` labels, **now**
+— the maintainer's standing grant for this is the **GitHub write authorization** section of
+`../SKILL.md`, and a finding you defer is a finding you lose. **Do not** fold it into this PR.
+Mention it in a comment so the lead can queue it later. If the write is refused anyway, post the
+issue body as a PR comment and tell the lead — never ask another agent to file it for you.
