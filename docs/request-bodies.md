@@ -343,12 +343,27 @@ constraints:
 | `date_format` with date+time tokens | `format: date-time` |
 | `file` / `image` (string rule) | `type: string, format: binary` + switches body to multipart |
 | `digits:N` | `pattern: '^\d{N}$'` |
-| `nullable` | `nullable: true` |
+| `nullable` | OAS 3.1 nullability (see below) — never the 3.0 `nullable: true` keyword |
 | `Password::min(N)` | `type: string, format: password, minLength: N` |
 | `Password::…->letters()->numbers()` | `description` listing active character-class requirements |
 | `File::types([…])` | `type: string, format: binary`; `description` with allowed types and size bounds |
 | `File::image()` / `ImageFile` | same as `File` plus image dimensions in `description` when `.dimensions(…)` is chained |
 | `Dimensions` (standalone) | `type: string, format: binary`; `description` with all dimension constraints |
+
+### The `nullable` rule
+
+OpenAPI 3.1 dropped the `nullable` keyword, so a `nullable` rule is expressed in
+one of three ways, depending on what the field's other rules established:
+
+| The field's other rules give it | `nullable` produces |
+|---|---|
+| a scalar type (`string`, `integer`, `number`, `boolean`) | `type: [<type>, 'null']` |
+| a structured type, a `$ref`, or constraints without a type (`['nullable', 'min:1']`) | `oneOf: [<the constraints>, {type: 'null'}]` |
+| nothing at all (`['nullable']` on its own) | nothing — an unconstrained schema already permits null |
+
+Documentation keywords (`description`, `example`, `default`, `deprecated`, …)
+stay on the outer schema in the `oneOf` form; they describe the field, not its
+non-null branch.
 
 ### PATCH semantics
 
