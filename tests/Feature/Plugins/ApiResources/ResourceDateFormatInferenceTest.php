@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Route;
 use LogicException;
 use Psr\Log\LoggerInterface;
 use Radiergummi\OpenApi\Tests\Fixtures\Resources\FormattedDateResource;
+use Radiergummi\OpenApi\Tests\Fixtures\Resources\FormattedDateShapeAResource;
 use Radiergummi\OpenApi\Tests\Fixtures\Resources\FormattedDateValueObjectResource;
 use Radiergummi\OpenApi\Tests\Fixtures\Resources\FormattedDateWithoutModelResource;
 
@@ -31,6 +32,11 @@ class DateFormatInferenceController extends Controller
     }
 
     public function valueObject(): FormattedDateValueObjectResource
+    {
+        throw new LogicException('Signature-only fixture; never invoked.');
+    }
+
+    public function shapeA(): FormattedDateShapeAResource
     {
         throw new LogicException('Signature-only fixture; never invoked.');
     }
@@ -155,12 +161,53 @@ it('keeps ->format() unconstrained when the resource wraps no model', function (
     expect($properties['created_at'])->toBe([]);
 });
 
-it('keeps ->format() unconstrained when the wrapped class is a value object', function (): void {
+// endregion
+
+// region Value-object receivers
+
+it('types a ->format() on a wrapped value object date property as a date-time string', function (): void {
     $properties = formattedDateProperties('/dates-value-object', 'valueObject', 'FormattedDateValueObjectResource');
 
-    // The bare read types from the value object; formatting it must not reach that path.
-    expect($properties['issued_at'])->toBe([])
+    // The formatted key reads the same evidence the bare read does.
+    expect($properties['issued_at'])->toMatchArray(['type' => 'string', 'format' => 'date-time'])
         ->and($properties['issued_at_raw'])->toMatchArray(['type' => 'string', 'format' => 'date-time']);
+});
+
+it('types a ->format() on a typed value-object property of the resource', function (): void {
+    $properties = formattedDateProperties('/dates-shape-a', 'shapeA', 'FormattedDateShapeAResource');
+
+    expect($properties['starts_at'])->toMatchArray(['type' => 'string', 'format' => 'date-time'])
+        // The format argument decides the refinement, exactly as on the model path.
+        ->and($properties['starts_day'])->toMatchArray(['type' => 'string', 'format' => 'date'])
+        // A value-object property carries no prose for the key to inherit.
+        ->and($properties['starts_at'])->not->toHaveKey('description');
+});
+
+it('reads nullability off the call, not the value-object property', function (): void {
+    Route::get('/dates-shape-a', [DateFormatInferenceController::class, 'shapeA']);
+
+    $schema = generateSpec()['components']['schemas']['FormattedDateShapeAResource'];
+
+    // endsAt is nullable, but calling ->format() on it proves it was present.
+    expect($schema['properties']['ends_at'])->toMatchArray(['type' => 'string', 'format' => 'date-time'])
+        ->and($schema['required'])->toContain('ends_at')
+        ->and($schema['properties']['ends_at_nullsafe'])->toMatchArray([
+            'type' => ['string', 'null'],
+            'format' => 'date-time',
+        ]);
+});
+
+it('degrades a non-literal format argument on a value-object receiver to a plain string', function (): void {
+    $properties = formattedDateProperties('/dates-shape-a', 'shapeA', 'FormattedDateShapeAResource');
+
+    expect($properties['dynamic_format'])->toBe(['type' => 'string']);
+});
+
+it('keeps ->format() on an untypeable value-object member unconstrained', function (): void {
+    $properties = formattedDateProperties('/dates-shape-a', 'shapeA', 'FormattedDateShapeAResource');
+
+    // MoneyValue is a plain object leaf the reader refuses outright, so no date evidence exists.
+    expect($properties['price'])->toBe([]);
 });
 
 // endregion

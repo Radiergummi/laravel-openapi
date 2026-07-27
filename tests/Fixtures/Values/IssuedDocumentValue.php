@@ -7,8 +7,8 @@ namespace Radiergummi\OpenApi\Tests\Fixtures\Values;
 use DateTimeImmutable;
 
 /**
- * A non-Model value object carrying a date-typed public property: a bare `$this->issuedAt` reads
- * types from it, while `$this->issuedAt->format(…)` must not.
+ * A non-Model value object carrying a date-typed public property, which types both a bare
+ * `$this->issuedAt` read and a `$this->issuedAt->format(…)` call.
  */
 final readonly class IssuedDocumentValue
 {

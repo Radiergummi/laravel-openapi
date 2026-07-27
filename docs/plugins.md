@@ -115,7 +115,8 @@ class BookingResource extends JsonResource
   array / map / object schema. Properties with no declared type, a
   union/intersection type, or a type that would only map to a placeholder stay
   **unconstrained** (never-wrong); the model path is always tried first.
-- `$this->field->format(…)` on an attribute the model already types as a date
+  Formatting such a property is typed too — see the `->format(…)` bullet below.
+- `$this->field->format(…)` on a receiver already typed as a date
   (`format: date-time` / `date`) documents a **`string`**, refined to
   `format: date-time` when the format argument is an RFC3339 one (`DATE_ATOM`,
   `DATE_RFC3339`, `DATE_W3C`, `DateTimeInterface::ATOM`,
@@ -124,8 +125,12 @@ class BookingResource extends JsonResource
   `DATE_ISO8601` and `'Y-m-d H:i:s'`, which are not RFC3339, and an argument
   that is not a compile-time literal. A plain `->format(…)` also drops the
   `null` a nullable timestamp carries, since reaching the call proves the value
-  was there; `?->format(…)` keeps it nullable. Receivers the model cannot type
-  as a date, a value object's members among them, stay **unconstrained**.
+  was there; `?->format(…)` keeps it nullable. The date evidence may come from
+  the wrapped model or from a value object's statically-typed public property —
+  both the `@mixin` / `@extends` value object and a `$this->wrapped->field`
+  read. Receivers neither source types as a date, a model relation hop
+  (`$this->parent->published_at->format(…)`) among them, stay
+  **unconstrained**.
 - Literal scalars and arrays type themselves; nested literal arrays become
   nested object/array schemas.
 - `new OtherResource(...)`, `OtherResource::make(...)`, and
