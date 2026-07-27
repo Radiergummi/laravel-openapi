@@ -107,6 +107,8 @@ final class FieldDescriptor
         // because OAS 3.1 ignores keywords alongside a $ref.
         if ($this->ref !== null && ($overwrite || is_undefined($target->ref))) {
             if ($this->nullable) {
+                // Indexing the result is safe only because a bare $ref always splits: wrap()
+                // leaves oneOf undefined for schemas it finds nothing to move out of.
                 $target->oneOf = NullableSchema::wrap(new OA\Schema(['ref' => $this->ref]))->oneOf;
             } else {
                 $target->ref = $this->ref;

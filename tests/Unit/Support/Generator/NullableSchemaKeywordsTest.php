@@ -88,9 +88,10 @@ final class SchemaKeywordPartition
     public const array IDENTITY = ['property', 'schema'];
 
     /**
-     * Every public member the installed swagger-php exposes on a schema annotation. `OA\Property`
-     * is included because it is what the request-body and Data-class paths actually pass in, and
-     * it carries two members `OA\Schema` does not.
+     * Every public member the installed swagger-php exposes on a schema annotation. All six
+     * schema-shaped annotations are reflected, not just the two the split actually receives
+     * today: the partition is the tripwire for a member a future swagger-php adds, and one
+     * added to any of them would strand silently if only `OA\Schema` were watched.
      *
      * @return list<string>
      */
@@ -98,7 +99,16 @@ final class SchemaKeywordPartition
     {
         $members = [];
 
-        foreach ([OA\Schema::class, OA\Property::class] as $class) {
+        $schemaShapedAnnotations = [
+            OA\Schema::class,
+            OA\Property::class,
+            OA\Items::class,
+            OA\AdditionalProperties::class,
+            OA\JsonContent::class,
+            OA\XmlContent::class,
+        ];
+
+        foreach ($schemaShapedAnnotations as $class) {
             $reflection = new ReflectionClass($class);
 
             foreach ($reflection->getProperties(ReflectionProperty::IS_PUBLIC) as $property) {
