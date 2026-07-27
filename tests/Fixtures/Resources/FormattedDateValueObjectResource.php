@@ -9,8 +9,8 @@ use Illuminate\Http\Resources\Json\JsonResource;
 use Radiergummi\OpenApi\Tests\Fixtures\Values\IssuedDocumentValue;
 
 /**
- * Refuse: the wrapped class is a value object, not a Model. A bare `$this->issuedAt` still types
- * from its public property; formatting it does not.
+ * Shape (B): the wrapped class is a value object, not a Model. Both a bare `$this->issuedAt` and
+ * `->format(…)` on it type from its public property.
  *
  * @mixin IssuedDocumentValue
  */

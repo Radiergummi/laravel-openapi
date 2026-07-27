@@ -631,8 +631,8 @@ final class ResourceToArrayReader
      * a nullable timestamp carries is dropped; `?->format(...)` keeps it.
      *
      * The date evidence is required: `->format()` on anything else is an app method that may
-     * return anything. Only the wrapped *model* answers that question here, never a value object,
-     * whose members are typed by a path this step deliberately stays out of.
+     * return anything. It may come from the wrapped model or from a value object's statically
+     * typed public property, the same two sources a bare read consults.
      *
      * @param class-string<JsonResource> $resourceClass
      * @param null|class-string<Model>   $modelClass
@@ -658,15 +658,12 @@ final class ResourceToArrayReader
             return null;
         }
 
-        $fieldName = $this->modelFieldName($value->var);
+        $receiverProperty = $this->receiverProperty($value->var, $resourceClass, $modelClass);
 
-        if ($fieldName === null || $modelClass === null) {
-            return null;
-        }
-
-        $modelProperty = $this->modelToSchema->propertyFor($modelClass, $fieldName);
-
-        if ($modelProperty === null || !in_array($modelProperty->format, self::DATE_LIKE_FORMATS, strict: true)) {
+        if (
+            $receiverProperty === null
+            || !in_array($receiverProperty->format, self::DATE_LIKE_FORMATS, strict: true)
+        ) {
             return null;
         }
 
@@ -681,12 +678,38 @@ final class ResourceToArrayReader
             },
         ]);
 
-        // The model's documented prose describes the attribute, which is still what this key holds.
-        if (is_defined($modelProperty->description)) {
-            $property->description = $modelProperty->description;
+        // The receiver's documented prose describes the attribute, which is still what this key holds.
+        if (is_defined($receiverProperty->description)) {
+            $property->description = $receiverProperty->description;
         }
 
         return InferredResourceField::ofProperty($name, required: !$optional, property: $property);
+    }
+
+    /**
+     * The property schema behind a `->format(...)` receiver, from the wrapped model, from the
+     * `@mixin`/`@extends` value object, or from a value object the resource declares as a typed
+     * property. Null when no source types the receiver.
+     *
+     * @param class-string<JsonResource> $resourceClass
+     * @param null|class-string<Model>   $modelClass
+     *
+     * @throws ReflectionException
+     */
+    private function receiverProperty(Expr $receiver, string $resourceClass, ?string $modelClass): ?OA\Property
+    {
+        $fieldName = $this->modelFieldName($receiver);
+
+        // A wrapped-model read is tried first, mirroring the bare-read precedence. The branches
+        // cannot overlap anyway: shape (A) needs a typed property, and the inherited `$resource`
+        // one cannot be typed by a subclass.
+        if ($fieldName !== null) {
+            $property = $modelClass !== null ? $this->modelToSchema->propertyFor($modelClass, $fieldName) : null;
+
+            return $property ?? $this->valueObjectProperty($resourceClass, $fieldName);
+        }
+
+        return $this->wrappedValueObjectProperty($receiver, $resourceClass);
     }
 
     /**
@@ -719,9 +742,7 @@ final class ResourceToArrayReader
     }
 
     /**
-     * Shape (A): resolves `$this-><wrappedProp>-><field>` against the value object declared as
-     * `<wrappedProp>`'s type on the resource. Returns null when the receiver is not that shape or
-     * the field cannot be typed without guessing.
+     * Resolves a shape (A) field, `$this-><wrappedProp>-><field>`, to its named property.
      *
      * @param class-string<JsonResource> $resourceClass
      *
@@ -733,6 +754,28 @@ final class ResourceToArrayReader
         bool $optional,
         string $resourceClass,
     ): ?InferredResourceField {
+        $property = $this->wrappedValueObjectProperty($value, $resourceClass);
+
+        if ($property === null) {
+            return null;
+        }
+
+        $property->property = $name;
+
+        return InferredResourceField::ofProperty($name, required: !$optional, property: $property);
+    }
+
+    /**
+     * The shape (A) property behind `$this-><wrappedProp>-><field>`, typed from the value object
+     * declared as `<wrappedProp>`'s type on the resource. Null when the expression is not that
+     * shape or the field cannot be typed without guessing.
+     *
+     * @param class-string<JsonResource> $resourceClass
+     *
+     * @throws ReflectionException
+     */
+    private function wrappedValueObjectProperty(Expr $value, string $resourceClass): ?OA\Property
+    {
         if (
             !$value instanceof PropertyFetch
             || !$value->name instanceof Identifier
@@ -749,15 +792,7 @@ final class ResourceToArrayReader
             return null;
         }
 
-        $property = $this->publicPropertyTypeReader->propertyFor($valueObjectClass, $value->name->toString());
-
-        if ($property === null) {
-            return null;
-        }
-
-        $property->property = $name;
-
-        return InferredResourceField::ofProperty($name, required: !$optional, property: $property);
+        return $this->publicPropertyTypeReader->propertyFor($valueObjectClass, $value->name->toString());
     }
 
     /**
