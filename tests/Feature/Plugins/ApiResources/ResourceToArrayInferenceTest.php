@@ -21,6 +21,7 @@ use Radiergummi\OpenApi\Tests\Fixtures\Resources\NestingArticleResource;
 use Radiergummi\OpenApi\Tests\Fixtures\Resources\OpaqueValuesResource;
 use Radiergummi\OpenApi\Tests\Fixtures\Resources\PassthroughArticleResource;
 use Radiergummi\OpenApi\Tests\Fixtures\Resources\SelfReferencingCategoryResource;
+use Radiergummi\OpenApi\Tests\Fixtures\Resources\TypedModelPropertyResource;
 use Radiergummi\OpenApi\Tests\Fixtures\Resources\UnconditionalMergeResource;
 use Radiergummi\OpenApi\Tests\Fixtures\Resources\UnlessArticleResource;
 use Radiergummi\OpenApi\Tests\Fixtures\Resources\UntypedReceiverResource;
@@ -96,6 +97,11 @@ class ToArrayInferenceController extends Controller
     }
 
     public function untypedReceiver(): UntypedReceiverResource
+    {
+        throw new LogicException('Signature-only fixture; never invoked.');
+    }
+
+    public function typedModelProperty(): TypedModelPropertyResource
     {
         throw new LogicException('Signature-only fixture; never invoked.');
     }
@@ -488,6 +494,73 @@ it('tries the Model path before the value-object path with no Model regression',
     expect($properties['title']['type'])->toBe('string')
         ->and($properties['reading_time']['type'])->toBe('integer')
         ->and($properties['published_at'])->toMatchArray(['type' => 'string', 'format' => 'date-time']);
+});
+
+// endregion
+
+// region Typed Model property (shape A)
+
+it('types $this->wrapped->field from model metadata when the property is a Model', function (): void {
+    Route::get('/typed-model-property', [ToArrayInferenceController::class, 'typedModelProperty']);
+
+    $properties = resourceComponent(generateSpec(), 'TypedModelPropertyResource')['properties'];
+
+    expect($properties['published_at'])->toMatchArray(['type' => 'string', 'format' => 'date-time'])
+        ->and($properties['summary']['type'])->toBe('string');
+});
+
+it('carries the model attribute prose onto a typed Model property read', function (): void {
+    Route::get('/typed-model-property', [ToArrayInferenceController::class, 'typedModelProperty']);
+
+    $properties = resourceComponent(generateSpec(), 'TypedModelPropertyResource')['properties'];
+
+    // Prose lives only on `@property` tags, so it proves the model reader produced this schema.
+    expect($properties['release_date'])->toMatchArray([
+        'type' => 'string',
+        'format' => 'date',
+        'description' => 'The day the article goes on sale.',
+    ]);
+});
+
+it('refs the related model and registers its schema for a single relation hop', function (): void {
+    Route::get('/typed-model-property', [ToArrayInferenceController::class, 'typedModelProperty']);
+
+    $spec = generateSpec();
+    $properties = resourceComponent($spec, 'TypedModelPropertyResource')['properties'];
+
+    expect($properties['relation_single_hop'])->toBe(['$ref' => '#/components/schemas/DatedArticle'])
+        ->and($spec['components']['schemas'])->toHaveKey('DatedArticle');
+});
+
+it('refuses an attribute the model has no metadata for (typed Model property)', function (): void {
+    Route::get('/typed-model-property', [ToArrayInferenceController::class, 'typedModelProperty']);
+
+    $properties = resourceComponent(generateSpec(), 'TypedModelPropertyResource')['properties'];
+
+    expect($properties['unknown_column'])->toBe([])
+        // A second hop off the model is not shape (A), so the receiver rule stays closed.
+        ->and($properties['relation_hop'])->toBe([]);
+});
+
+it('falls back to the statically-typed public property of a Model receiver', function (): void {
+    Route::get('/typed-model-property', [ToArrayInferenceController::class, 'typedModelProperty']);
+
+    $properties = resourceComponent(generateSpec(), 'TypedModelPropertyResource')['properties'];
+
+    // The model has no metadata for `slug`, so reaching a type at all proves the public-property
+    // read is still consulted for a Model receiver. Only one reader answers here, so this says
+    // nothing about their order; the next test covers that.
+    expect($properties['public_typed_property']['type'])->toBe('string');
+});
+
+it('prefers model metadata over the public property when both type the field', function (): void {
+    Route::get('/typed-model-property', [ToArrayInferenceController::class, 'typedModelProperty']);
+
+    $properties = resourceComponent(generateSpec(), 'TypedModelPropertyResource')['properties'];
+
+    // `legacyCode` is cast to integer and declared `public string`, so the two readers disagree and
+    // the winner names the one that ran first. Inverting the precedence turns this key into a string.
+    expect($properties['both_sources_typed']['type'])->toBe('integer');
 });
 
 // endregion

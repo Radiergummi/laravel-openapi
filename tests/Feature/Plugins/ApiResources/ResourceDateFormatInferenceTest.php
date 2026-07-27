@@ -12,6 +12,7 @@ use Radiergummi\OpenApi\Tests\Fixtures\Resources\FormattedDateResource;
 use Radiergummi\OpenApi\Tests\Fixtures\Resources\FormattedDateShapeAResource;
 use Radiergummi\OpenApi\Tests\Fixtures\Resources\FormattedDateValueObjectResource;
 use Radiergummi\OpenApi\Tests\Fixtures\Resources\FormattedDateWithoutModelResource;
+use Radiergummi\OpenApi\Tests\Fixtures\Resources\TypedModelPropertyResource;
 
 use function array_filter;
 use function array_values;
@@ -37,6 +38,11 @@ class DateFormatInferenceController extends Controller
     }
 
     public function shapeA(): FormattedDateShapeAResource
+    {
+        throw new LogicException('Signature-only fixture; never invoked.');
+    }
+
+    public function typedModelProperty(): TypedModelPropertyResource
     {
         throw new LogicException('Signature-only fixture; never invoked.');
     }
@@ -215,6 +221,63 @@ it('keeps ->format() on a typed but non-date value-object member unconstrained',
 
     // The reader types a backed enum, so this reaches the date-evidence check and is refused there.
     expect($properties['currency'])->toBe([]);
+});
+
+// endregion
+
+// region Typed Model property receivers
+
+it('types a ->format() on an attribute of a Model-typed property of the resource', function (): void {
+    $properties = formattedDateProperties(
+        '/dates-typed-model-property',
+        'typedModelProperty',
+        'TypedModelPropertyResource',
+    );
+
+    expect($properties['published_at_formatted'])->toMatchArray([
+        'type' => 'string',
+        'format' => 'date-time',
+    ])
+        // The format argument decides the refinement, and the attribute's prose comes along.
+        ->and($properties['release_day'])->toMatchArray([
+            'type' => 'string',
+            'format' => 'date',
+            'description' => 'The day the article goes on sale.',
+        ]);
+});
+
+it('keeps the nullable type for a nullsafe ?->format() on a Model-typed property', function (): void {
+    $properties = formattedDateProperties(
+        '/dates-typed-model-property',
+        'typedModelProperty',
+        'TypedModelPropertyResource',
+    );
+
+    expect($properties['nullsafe_published'])->toMatchArray([
+        'type' => ['string', 'null'],
+        'format' => 'date-time',
+    ]);
+});
+
+it('degrades a non-literal format argument on a Model-typed property to a plain string', function (): void {
+    $properties = formattedDateProperties(
+        '/dates-typed-model-property',
+        'typedModelProperty',
+        'TypedModelPropertyResource',
+    );
+
+    expect($properties['dynamic_format'])->toBe(['type' => 'string']);
+});
+
+it('keeps ->format() on a non-date attribute of a Model-typed property unconstrained', function (): void {
+    $properties = formattedDateProperties(
+        '/dates-typed-model-property',
+        'typedModelProperty',
+        'TypedModelPropertyResource',
+    );
+
+    // The date-evidence gate applies to a model receiver exactly as it does to a value object.
+    expect($properties['formatted_non_date'])->toBe([]);
 });
 
 // endregion
