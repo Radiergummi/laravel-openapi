@@ -366,7 +366,96 @@ class ReturnExpressionController extends Controller
         );
     }
 
+    #[ResponseResource(NestedAuthorResource::class)]
+    public function attributedForbiddenStatus(): JsonResponse
+    {
+        return response()->json(NestedAuthorResource::make(Author::query()->firstOrFail()), 403);
+    }
+
+    #[ResponseResource(NestedAuthorResource::class)]
+    public function attributedAcceptedStatus(): JsonResponse
+    {
+        return response()->json(NestedAuthorResource::make(Author::query()->firstOrFail()), 202);
+    }
+
+    #[ResponseResource(NestedAuthorResource::class)]
+    public function attributedOpaqueForbiddenStatus(): JsonResponse
+    {
+        return response()->json($this->presenterOutput(), 403);
+    }
+
+    #[ResponseResource(NestedAuthorResource::class, collection: true)]
+    public function attributedCollectionForbiddenStatus(): JsonResponse
+    {
+        return response()->json(NestedAuthorResource::collection(Author::all()), 403);
+    }
+
+    #[ResponseResource(NestedAuthorResource::class)]
+    public function attributedDynamicStatus(): JsonResponse
+    {
+        $status = random_int(200, 202);
+
+        return response()->json(NestedAuthorResource::make(Author::query()->firstOrFail()), $status);
+    }
+
+    #[ResponseResource(NestedAuthorResource::class)]
+    public function attributedMixedErrorAndBare(bool $flag): JsonResponse|JsonResource
+    {
+        if ($flag) {
+            return response()->json(NestedAuthorResource::make(Author::query()->firstOrFail()), 403);
+        }
+
+        return NestedAuthorResource::make(Author::query()->firstOrFail());
+    }
+
+    #[ResponseResource(NestedAuthorResource::class)]
+    public function attributedAllForbidden(bool $flag): JsonResponse
+    {
+        if ($flag) {
+            return response()->json(NestedAuthorResource::make(Author::query()->firstOrFail()), 403);
+        }
+
+        return response()->json(NestedAuthorResource::make(Author::query()->firstOrFail()), 403);
+    }
+
+    #[ResponseResource(NestedAuthorResource::class)]
+    public function attributedHeaderChain(): JsonResponse
+    {
+        return response()
+            ->json(NestedAuthorResource::make(Author::query()->firstOrFail()), 403)
+            ->header('X-Author', 'yes');
+    }
+
+    #[ResponseResource(NestedAuthorResource::class)]
+    public function attributedNoContentStatus(): JsonResponse
+    {
+        return response()->json(NestedAuthorResource::make(Author::query()->firstOrFail()), 204);
+    }
+
+    #[ResponseResource(NestedAuthorResource::class)]
+    public function attributedResetContentStatus(): JsonResponse
+    {
+        return response()->json(NestedAuthorResource::make(Author::query()->firstOrFail()), 205);
+    }
+
+    #[ResponseResource(FieldlessForbiddenResource::class)]
+    public function attributedFieldlessForbiddenStatus(): JsonResponse
+    {
+        return response()->json(FieldlessForbiddenResource::make(Author::query()->firstOrFail()), 403);
+    }
+
     private function authors(): AnonymousResourceCollection
+    {
+        throw new LogicException('Fixture helper; never invoked.');
+    }
+
+    /**
+     * A value the return-expression reader cannot resolve to a resource, so the wrapper's status is
+     * the only thing readable about the return.
+     *
+     * @return array<string, mixed>
+     */
+    private function presenterOutput(): array
     {
         throw new LogicException('Fixture helper; never invoked.');
     }
@@ -428,6 +517,71 @@ class ForbiddenStatusStoreController extends Controller
     public function store(): JsonResponse
     {
         return response()->json(NestedAuthorResource::make(Author::query()->firstOrFail()), 422);
+    }
+}
+
+/**
+ * Fixture controller carrying a **class-level** `#[ResponseResource]`, whose `store()` wraps the
+ * resource in a non-2xx status: class-level placement must not shield the wrapper from the read.
+ */
+#[ResponseResource(NestedAuthorResource::class)]
+class ClassAttributedForbiddenStoreController extends Controller
+{
+    public function store(): JsonResponse
+    {
+        return response()->json(NestedAuthorResource::make(Author::query()->firstOrFail()), 403);
+    }
+}
+
+/**
+ * Fixture controller whose attributed `store()` authors a `200`, which the resourceful-route
+ * convention would otherwise renumber to `201`.
+ */
+class AttributedOkStoreController extends Controller
+{
+    #[ResponseResource(NestedAuthorResource::class)]
+    public function store(): JsonResponse
+    {
+        return response()->json(NestedAuthorResource::make(Author::query()->firstOrFail()), 200);
+    }
+}
+
+/**
+ * Fixture controller whose attributed `store()` authors a `202`, so the authored status has to beat
+ * the convention's `201` on the attribute path too.
+ */
+class AttributedAcceptedStoreController extends Controller
+{
+    #[ResponseResource(NestedAuthorResource::class)]
+    public function store(): JsonResponse
+    {
+        return response()->json(NestedAuthorResource::make(Author::query()->firstOrFail()), 202);
+    }
+}
+
+/**
+ * Fixture controller whose attributed `destroy()` authors a `204`: the resource path yields, and the
+ * resourceful-route convention then names `204` anyway, restoring the authored status.
+ */
+class AttributedNoContentDestroyController extends Controller
+{
+    #[ResponseResource(NestedAuthorResource::class)]
+    public function destroy(): JsonResponse
+    {
+        return response()->json(NestedAuthorResource::make(Author::query()->firstOrFail()), 204);
+    }
+}
+
+/**
+ * Fixture controller whose attributed `destroy()` authors a `205`: the convention that fills the gap
+ * names `204`, so the documented status is neither the authored one nor a body-bearing success.
+ */
+class AttributedResetContentDestroyController extends Controller
+{
+    #[ResponseResource(NestedAuthorResource::class)]
+    public function destroy(): JsonResponse
+    {
+        return response()->json(NestedAuthorResource::make(Author::query()->firstOrFail()), 205);
     }
 }
 
@@ -1121,6 +1275,207 @@ it('leaves a non-resource response()->json(...) at the bare 200', function (): v
     expect($response)->not->toBeNull()
         ->and($response['content'] ?? [])->not->toHaveKey('application/json')
         ->and($spec['components']['schemas'] ?? [])->not->toHaveKey('NestedAuthorResource');
+});
+
+// endregion
+
+// region #[ResponseResource] + an authored wrapper status
+
+it('yields entirely when an attributed action wraps its resource in a non-2xx status', function (): void {
+    Route::get('/attributed-forbidden', [ReturnExpressionController::class, 'attributedForbiddenStatus']);
+
+    $spec = generateSpec();
+    $responses = $spec['paths']['/attributed-forbidden']['get']['responses'];
+
+    // The attribute names the resource, not the status it rides on: a 403 cannot carry a success
+    // envelope, so no 2xx carries content and nothing is registered for a resource never referenced.
+    expect(successStatuses($responses))->toBe([200])
+        ->and($responses['200'])->not->toHaveKey('content')
+        ->and($responses)->toHaveKey('403')
+        ->and($spec['components']['schemas'] ?? [])->not->toHaveKey('NestedAuthorResource');
+});
+
+it('honours a 2xx wrapper status on an attributed action, envelope included', function (): void {
+    Route::get('/attributed-accepted', [ReturnExpressionController::class, 'attributedAcceptedStatus']);
+
+    $spec = generateSpec();
+    $schema = successSchema($spec, '/attributed-accepted', '202');
+
+    expect($schema['properties']['data']['$ref'])->toBe('#/components/schemas/NestedAuthorResource')
+        ->and(successStatuses($spec['paths']['/attributed-accepted']['get']['responses']))->toBe([202]);
+});
+
+it('reads the wrapper status even when the wrapped data resolves to nothing', function (): void {
+    Route::get('/attributed-opaque', [ReturnExpressionController::class, 'attributedOpaqueForbiddenStatus']);
+
+    $spec = generateSpec();
+    $responses = $spec['paths']['/attributed-opaque']['get']['responses'];
+
+    // The shape #[ResponseResource] exists for: the data argument is unreadable, so only a
+    // status-only read reaches the 403. Resolving the resource first would keep the phantom 200.
+    expect(successStatuses($responses))->toBe([200])
+        ->and($responses['200'])->not->toHaveKey('content')
+        ->and($responses)->toHaveKey('403')
+        ->and($spec['components']['schemas'] ?? [])->not->toHaveKey('NestedAuthorResource');
+});
+
+it('yields before the attribute\'s cardinality can emit a collection envelope', function (): void {
+    Route::get('/attributed-collection-forbidden', [
+        ReturnExpressionController::class,
+        'attributedCollectionForbiddenStatus',
+    ]);
+
+    $spec = generateSpec();
+    $responses = $spec['paths']['/attributed-collection-forbidden']['get']['responses'];
+
+    expect($responses['200'])->not->toHaveKey('content')
+        ->and($responses)->toHaveKey('403')
+        ->and($spec['components']['schemas'] ?? [])->not->toHaveKey('NestedAuthorResource');
+});
+
+it('keeps the attributed resource at the conventional 200 when the status is not readable', function (): void {
+    Route::get('/attributed-dynamic', [ReturnExpressionController::class, 'attributedDynamicStatus']);
+
+    $spec = generateSpec();
+    $schema = successSchema($spec, '/attributed-dynamic');
+
+    // An unreadable status must not cost the attribute its resource.
+    expect($schema['properties']['data']['$ref'])->toBe('#/components/schemas/NestedAuthorResource')
+        ->and(successStatuses($spec['paths']['/attributed-dynamic']['get']['responses']))->toBe([200]);
+});
+
+it('drops the status claim, not the attributed resource, when the branches disagree', function (): void {
+    Route::get('/attributed-mixed', [ReturnExpressionController::class, 'attributedMixedErrorAndBare']);
+
+    $spec = generateSpec();
+    $schema = successSchema($spec, '/attributed-mixed');
+
+    expect($schema['properties']['data']['$ref'])->toBe('#/components/schemas/NestedAuthorResource')
+        ->and(successStatuses($spec['paths']['/attributed-mixed']['get']['responses']))->toBe([200]);
+});
+
+it('yields when every branch of an attributed action agrees on the same non-2xx status', function (): void {
+    Route::get('/attributed-all-forbidden', [ReturnExpressionController::class, 'attributedAllForbidden']);
+
+    $spec = generateSpec();
+    $responses = $spec['paths']['/attributed-all-forbidden']['get']['responses'];
+
+    expect($responses['200'])->not->toHaveKey('content')
+        ->and($responses)->toHaveKey('403')
+        ->and($spec['components']['schemas'] ?? [])->not->toHaveKey('NestedAuthorResource');
+});
+
+it('pins the unrecognised-chain limitation: the status stays unread on an attributed action', function (): void {
+    Route::get('/attributed-header-chain', [ReturnExpressionController::class, 'attributedHeaderChain']);
+
+    $spec = generateSpec();
+    $schema = successSchema($spec, '/attributed-header-chain');
+
+    // Chaining anything but ->additional() after json() leaves the status unread, exactly as on the
+    // inference path, so the attribute's resource lands on the conventional 200.
+    expect($schema['properties']['data']['$ref'])->toBe('#/components/schemas/NestedAuthorResource')
+        ->and(successStatuses($spec['paths']['/attributed-header-chain']['get']['responses']))->toBe([200]);
+});
+
+it('drops a content-less attributed status on a non-resourceful route, leaving a body-less 200', function (string $action): void {
+    Route::get('/attributed-content-less', [ReturnExpressionController::class, $action]);
+
+    $spec = generateSpec();
+    $responses = $spec['paths']['/attributed-content-less']['get']['responses'];
+
+    // Core never sees the call (it skips actions carrying a primary-response authoring attribute),
+    // so the authored status is dropped and the conventional 200 is all that is left. Losing the
+    // status beats an envelope RFC 9110 forbids on either code.
+    expect(successStatuses($responses))->toBe([200])
+        ->and($responses['200'])->not->toHaveKey('content')
+        ->and($spec['components']['schemas'] ?? [])->not->toHaveKey('NestedAuthorResource');
+})->with([
+    'authored 204' => ['attributedNoContentStatus'],
+    'authored 205' => ['attributedResetContentStatus'],
+]);
+
+it('lets the resourceful destroy() convention supply 204 for a dropped content-less status', function (string $controller): void {
+    Route::delete('/attributed-widgets/{widget}', [$controller, 'destroy']);
+
+    $spec = generateSpec();
+    $responses = $spec['paths']['/attributed-widgets/{widget}']['delete']['responses'];
+
+    // The route shape decides the outcome, so both halves of the matrix are pinned: on a DELETE the
+    // convention names 204, which restores the authored 204 — and renames an authored 205 to it, a
+    // status that action never returns. That mismatch is the convention's, not the attribute's: an
+    // unattributed destroy() authoring 205 documents 204 today too.
+    expect(successStatuses($responses))->toBe([204])
+        ->and($responses['204'])->not->toHaveKey('content')
+        ->and($spec['components']['schemas'] ?? [])->not->toHaveKey('NestedAuthorResource');
+})->with([
+    'authored 204 (restored)' => [AttributedNoContentDestroyController::class],
+    'authored 205 (renamed to 204)' => [AttributedResetContentDestroyController::class],
+]);
+
+it('does not resurrect the resourceful 201 for a class-attributed store() wrapped in a 403', function (): void {
+    Route::post('/class-attributed-widgets', [ClassAttributedForbiddenStoreController::class, 'store']);
+
+    $spec = generateSpec();
+    $responses = $spec['paths']['/class-attributed-widgets']['post']['responses'];
+
+    expect(successStatuses($responses))->toBe([201])
+        ->and($responses['201'])->not->toHaveKey('content')
+        ->and($spec['components']['schemas'] ?? [])->not->toHaveKey('NestedAuthorResource');
+});
+
+it('lets an authored 200 beat the resourceful 201 on an attributed store()', function (string $route, string $status): void {
+    Route::post($route, [
+        $status === '200' ? AttributedOkStoreController::class : AttributedAcceptedStoreController::class,
+        'store',
+    ]);
+
+    $spec = generateSpec();
+    $schema = successSchema($spec, $route, $status, 'post');
+
+    // Reading the wrapper status makes it explicit, so the convention no longer renumbers it: an
+    // attributed store() authoring 200 documents 200, where it used to document 201.
+    expect($schema['properties']['data']['$ref'])->toBe('#/components/schemas/NestedAuthorResource')
+        ->and(successStatuses($spec['paths'][$route]['post']['responses']))->toBe([(int) $status]);
+})->with([
+    'authored 200 over the conventional 201' => ['/attributed-ok-widgets', '200'],
+    'authored 202 over the conventional 201' => ['/attributed-accepted-widgets', '202'],
+]);
+
+it('leaves neither a lint finding nor a component behind for a refused attributed resource', function (): void {
+    Route::get('/attributed-fieldless-forbidden', [
+        ReturnExpressionController::class,
+        'attributedFieldlessForbiddenStatus',
+    ]);
+    app()->forgetScopedInstances();
+
+    $schemas = generateSpec()['components']['schemas'] ?? [];
+    app()->forgetScopedInstances();
+
+    $result = app(LintRunner::class)->run(new LintOptions(
+        only: ['resource.fields-undeclared'],
+        uriGlob: 'attributed-fieldless-forbidden',
+    ));
+
+    expect($result->findings)->toBe([])
+        ->and($schemas)->not->toHaveKey('FieldlessForbiddenResource');
+});
+
+it('stays silent about an attributed action whose body it cannot read', function (): void {
+    Route::get('/attributed-opaque-log', [ReturnExpressionController::class, 'attributedOpaqueForbiddenStatus']);
+
+    $logger = recordingLogger();
+    app()->instance(LoggerInterface::class, $logger);
+
+    generateSpec();
+
+    // The reader's refusal notice advises annotating the action with #[ResponseResource], which is
+    // nonsense on an action that already carries it. The status-only read never notes.
+    $noted = array_any(
+        $logger->records,
+        static fn(array $record): bool => str_contains($record['message'], 'attributedOpaqueForbiddenStatus'),
+    );
+
+    expect($noted)->toBeFalse();
 });
 
 // endregion

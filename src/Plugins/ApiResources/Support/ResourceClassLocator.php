@@ -36,6 +36,10 @@ use function is_string;
  * `LazyCollection`), {@see ReturnExpressionResourceReader} inspects the return expression; refusal
  * leaves the endpoint ambiguous. On the untyped and container paths the refusal notice is
  * suppressed, since the reader then runs on every such action and most are not resources.
+ *
+ * The attribute decides the resource class and cardinality outright, but not the status: the
+ * wrapper's authored status is read from the return expression and rides along on the target, so an
+ * attributed action returning `response()->json(<resource>, 403)` refuses like an inferred one.
  */
 final readonly class ResourceClassLocator implements ResourceTargetLocator
 {
@@ -73,6 +77,7 @@ final readonly class ResourceClassLocator implements ResourceTargetLocator
             return new ResourceTarget(
                 resourceClass: $attribute->class,
                 isCollection: $attribute->collection ?? $returnsCollection,
+                authoredStatus: $this->authoredStatusFromReturnExpression($descriptor),
             );
         }
 
@@ -212,6 +217,22 @@ final readonly class ResourceClassLocator implements ResourceTargetLocator
 
         /** @var class-string<JsonResource> $candidate */
         return $candidate;
+    }
+
+    /**
+     * The status the action's `response()->json(<resource>, <status>)` wrapper authors, read on the
+     * attribute path too: `#[ResponseResource]` names which resource is returned, not the status it
+     * is returned under. Closure routes have no method to read.
+     *
+     * @throws ReflectionException
+     */
+    private function authoredStatusFromReturnExpression(ActionDescriptor $descriptor): ?int
+    {
+        if ($descriptor->method === null) {
+            return null;
+        }
+
+        return $this->returnExpressionReader->readAuthoredStatus($descriptor->method);
     }
 
     /**

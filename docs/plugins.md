@@ -275,10 +275,20 @@ Recognised shapes:
   no resource anywhere, leaving the authored error status to the error subsystem,
   and the contentless successes `204` and `205` document no resource either, since
   an envelope must not ride on a status RFC 9110 allows no content. A `204` is
-  claimed by the inline-JSON resolver first and documented as a body-less `204`.
+  claimed by the inline-JSON resolver first and documented as a body-less `204` —
+  except on an action carrying `#[ResponseResource]`, which Core skips entirely, so
+  the authored `204`/`205` is simply dropped and the route convention supplies the
+  status: a body-less `200` on an ordinary route, or `204` on a resourceful
+  `destroy()` — which restores an authored `204`, and renames an authored `205` to
+  it, exactly as it already does for an unattributed `destroy()`.
   When several returns disagree on the status the claim is dropped rather than the
   resource, so an action guarding with a `403` beside a legitimate success branch
   keeps its schema under the conventional status.
+  The status read applies to **attributed** actions too: `#[ResponseResource]` fixes
+  the resource class and cardinality, and the wrapper's status is read from the body
+  independently of what the wrapped value resolves to — including when it resolves
+  to nothing (`response()->json($this->presenter->render($m), 403)`), which is the
+  shape the attribute exists for.
   Chaining anything but `->additional(...)` after `json()` — `->header(...)`,
   `->setStatusCode(...)` — makes the scan refuse the expression outright, so no
   resource is resolved and the operation falls back to a bare `200`. (Distinct from
@@ -296,8 +306,9 @@ envelope — pagination meta is never guessed. A `@return` docblock generic reso
 the item class but still derives the envelope from the body: `{data, links, meta}`
 only when the body's `::collection($source)` argument visibly ends in a
 `paginate()`-family call; plain `{data}` otherwise (including when no inspectable
-body is available). Attribute-resolved collections always use `{data, links, meta}`
-since attributes carry no body context.
+body is available). Attribute-resolved collections always use `{data, links, meta}`:
+the attribute path reads the body only for the wrapper's status, never for
+pagination evidence.
 
 When a method has several top-level `return` statements, each is resolved
 through the same whitelist and the resource is emitted only when they **all
@@ -308,7 +319,9 @@ unresolvable — keep degrading.
 Anything else — a conditional return, a variable of unknown origin, an
 unrecognised chained call, a receiver that would need dataflow — degrades to the
 previous behaviour with a generation-log note; `#[ResponseResource]` is the
-escape hatch and always wins. On the **untyped** and **loose-response-wrapper**
+escape hatch and always wins **for the resource class and cardinality** — the
+wrapper's authored status is still read from the body, and the same yield rule
+applies. On the **untyped** and **loose-response-wrapper**
 paths that note is suppressed: the scan runs on every such action and most are
 not resources, so a notice per non-resource would be pure noise. The
 base-resource paths keep their notes.
