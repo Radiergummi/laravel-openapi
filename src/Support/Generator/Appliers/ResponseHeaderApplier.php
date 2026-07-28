@@ -9,6 +9,7 @@ use Radiergummi\OpenApi\Attributes\ResponseHeader as ResponseHeaderAttribute;
 use Radiergummi\OpenApi\Routing\ActionDescriptor;
 use Radiergummi\OpenApi\Support\Routing\RouteMiddlewareGatherer;
 
+use function array_all;
 use function array_any;
 use function array_filter;
 use function in_array;
