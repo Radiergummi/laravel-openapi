@@ -28,8 +28,10 @@ use function Radiergummi\OpenApi\is_undefined;
  *   check requires.
  * - A schema carrying no constraints at all is left untouched: it already permits null, and a
  *   `oneOf` would in fact forbid it, since null matches both branches and exactly-one then fails.
- *   An empty `type` array counts as no constraint, so it is left in place rather than widened to
- *   `type: ['null']` or moved into a wrapper.
+ * - An empty `type` array is degenerate input this rule can neither widen nor wrap, so it is
+ *   returned exactly as supplied (`type: []`), for spec validation to report: widening appends to
+ *   nothing and yields `type: ['null']`, which looks valid but admits only null, and wrapping
+ *   renders as `oneOf: [{}, {type: 'null'}]`, which rejects null instead.
  * - A schema that already permits null (a `'null'` type, or a `oneOf`/`anyOf` branch typed `null`)
  *   is likewise left untouched, so applying the rule twice is the same as applying it once.
  *
@@ -174,11 +176,14 @@ final class NullableSchema
     }
 
     /**
-     * Reports whether a field is a `type` carrying an empty array, which constrains nothing.
+     * Reports whether a field is a `type` carrying an empty array.
      *
-     * Such a type is neither widenable (appending `'null'` would leave `type: ['null']`, admitting
-     * only null) nor worth splitting on: it serialises away, so the wrapper would come out as
-     * `oneOf: [{}, {type: 'null'}]`, which rejects null instead.
+     * That is degenerate input rather than an absent constraint: the array form means "one of these
+     * types", an empty list offers none, and the meta-schema requires it non-empty. Neither
+     * transformation salvages it, so it stays on the node exactly as supplied and spec validation
+     * can report it. Widening leaves `type: ['null']`, admitting only null; moving it into the
+     * wrapper makes it vanish (a bare inner schema serialises 3.0-style, which filters an empty type
+     * array out), leaving `oneOf: [{}, {type: 'null'}]`, which rejects null instead.
      */
     private static function isEmptyTypeArray(string $field, mixed $value): bool
     {

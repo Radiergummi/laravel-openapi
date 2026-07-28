@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use OpenApi\Annotations as OA;
+use OpenApi\Context;
 use OpenApi\Generator;
 use Radiergummi\OpenApi\Support\Generator\NullableSchema;
 
@@ -343,9 +344,9 @@ it('leaves a schema whose type is an empty array untouched', function (): void {
     $target = new OA\Schema(['type' => []]);
     NullableSchema::applyTo($target);
 
-    // Widening would write type: ['null'], and splitting would produce
-    // oneOf: [{type: []}, {type: 'null'}] whose first branch matches nothing: both leave a schema
-    // that validates null and rejects every other value.
+    // Widening would write type: ['null'], admitting only null. Splitting is no better: the empty
+    // type array vanishes inside the wrapper, leaving oneOf: [{}, {type: 'null'}], whose first
+    // branch matches null too, so exactly-one fails and null is the one value rejected.
     expect($target->type)
         ->toBe([])
         ->and($target->oneOf)->toBe(Generator::UNDEFINED);
@@ -382,6 +383,39 @@ it('still splits when an empty type array accompanies a real constraint', functi
         ->and($target->oneOf)->toHaveCount(2)
         ->and($target->oneOf[0]->minLength)->toBe(3)
         ->and($target->oneOf[1]->type)->toBe('null');
+});
+
+// endregion
+
+// region Emitted document: what a consumer sees, not just the annotation object
+
+// A 3.1 context is what makes these assertions mean anything: without one, swagger-php serialises
+// 3.0-style and drops a multi-member type array entirely, so every candidate output collapses to the
+// same bytes and the assertion stops discriminating.
+
+it('emits an empty type array unchanged in a 3.1 document', function (): void {
+    $target = new OA\Schema(['type' => [], '_context' => new Context(['version' => '3.1.0'])]);
+    NullableSchema::applyTo($target);
+
+    // Both near misses are visible here: widening emits {"type":["null"]} and splitting emits
+    // {"oneOf":[{},{"type":"null"}]}.
+    expect(json_encode($target))->toBe('{"type":[]}');
+});
+
+it('emits the empty type array on the outer node of a nullable $ref (existing behaviour)', function (): void {
+    $target = new OA\Schema([
+        'ref' => '#/components/schemas/MyModel',
+        'type' => [],
+        '_context' => new Context(['version' => '3.1.0']),
+    ]);
+    NullableSchema::applyTo($target);
+
+    // Pins what happens today rather than what should: a $ref always splits, so the widening guard
+    // never runs and the empty type array stays outside the wrapper instead of vanishing inside it,
+    // adding a stray keyword a plain nullable $ref does not carry. Consistent with the composite
+    // case above, and unreachable from any producer, so it is recorded rather than chased.
+    expect(json_encode($target))
+        ->toBe('{"type":[],"oneOf":[{"$ref":"#\/components\/schemas\/MyModel"},{"type":"null"}]}');
 });
 
 // endregion
