@@ -17,6 +17,14 @@ return new class () extends Migration {
             $table->unsignedInteger('score');
             $table->string('slug', 20)->nullable();
             $table->unsignedDecimal('rate', 8, 2);
+            $table->enum('status', ['draft', 'published']);
+            $table->enum('flags', ['fresh', 'stale']);
+            $table->enum('state', ['on', 'off']);
+            $table->enum('tier', ['free', 'paid'])->nullable();
+            $table->enum('mode', ['auto', 'manual']);
+            $table->date('published_on');
+            $table->uuid('reference');
+            $table->uuid('token');
         });
     }
 };

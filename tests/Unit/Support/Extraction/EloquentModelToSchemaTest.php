@@ -33,6 +33,7 @@ use Radiergummi\OpenApi\Tests\Fixtures\Models\ShapedArticle;
 use Radiergummi\OpenApi\Tests\Fixtures\Models\UntimestampedArticle;
 use Radiergummi\OpenApi\Tests\Fixtures\Models\VisibleArticle;
 use Radiergummi\OpenApi\Tests\Fixtures\Models\Widget;
+use ReflectionMethod;
 use Symfony\Component\TypeInfo\TypeResolver\TypeResolver;
 
 use function Radiergummi\OpenApi\is_undefined;
@@ -117,6 +118,21 @@ function discardedKeywordWarnings(AbstractLogger $logger): array
         ->map(static fn(array $record): array => $record['context'])
         ->values()
         ->all();
+}
+
+/**
+ * Runs the keyword-applicability pass over a hand-built property, in place.
+ *
+ * Reaches past the public surface deliberately: the pass must refuse to prune a format it does not
+ * recognise, and no producer feeding this class emits one, so the guarantee has no reachable input
+ * to assert it through.
+ */
+function dropInapplicableKeywordsOn(OA\Property $property): void
+{
+    $reader = modelSchemaReader(new ComponentSchemaRegistry());
+
+    (new ReflectionMethod($reader, 'dropInapplicableKeywords'))
+        ->invoke($reader, ConflictedMetadataArticle::class, $property);
 }
 
 /**
@@ -738,6 +754,10 @@ it('warns for every discarded keyword, naming the model, property and keyword', 
         ['model' => $model, 'property' => 'tags', 'keyword' => 'maxLength', 'type' => ['array']],
         ['model' => $model, 'property' => 'rate', 'keyword' => 'minimum', 'type' => ['string']],
         ['model' => $model, 'property' => 'rate', 'keyword' => 'multipleOf', 'type' => ['string']],
+        ['model' => $model, 'property' => 'status', 'keyword' => 'enum', 'type' => ['integer']],
+        ['model' => $model, 'property' => 'published_on', 'keyword' => 'format', 'type' => ['integer']],
+        ['model' => $model, 'property' => 'flags', 'keyword' => 'enum', 'type' => ['array']],
+        ['model' => $model, 'property' => 'reference', 'keyword' => 'format', 'type' => ['integer']],
     ]);
 });
 
@@ -754,3 +774,105 @@ it('reports a repeated discarded keyword only once per run', function (): void {
     expect(discardedKeywordWarnings($logger))->toHaveCount(1)
         ->and(is_undefined($second?->minimum))->toBeTrue();
 });
+
+// region Value-level keywords: enum and format against the resolved type
+
+it('drops an enum whose members cannot match the resolved type', function (): void {
+    // A migration enum() column contributes members but no type of its own, so a contradicting tag
+    // leaves string members beside an integer type: an unsatisfiable schema, not merely an inert one.
+    $property = modelProperty(buildModelSchema(ConflictedMetadataArticle::class), 'status');
+
+    expect($property->type)->toBe('integer')
+        ->and(is_undefined($property->enum))->toBeTrue();
+});
+
+it('drops an enum whose string members cannot match an array-typed property', function (): void {
+    $property = modelProperty(buildModelSchema(ConflictedMetadataArticle::class), 'flags');
+
+    expect($property->type)->toBe('array')
+        ->and(is_undefined($property->enum))->toBeTrue();
+});
+
+it('drops a date format the resolved type cannot carry', function (): void {
+    $property = modelProperty(buildModelSchema(ConflictedMetadataArticle::class), 'published_on');
+
+    expect($property->type)->toBe('integer')
+        ->and(is_undefined($property->format))->toBeTrue();
+});
+
+it('drops a uuid format the resolved type cannot carry', function (): void {
+    $property = modelProperty(buildModelSchema(ConflictedMetadataArticle::class), 'reference');
+
+    expect($property->type)->toBe('integer')
+        ->and(is_undefined($property->format))->toBeTrue();
+});
+
+it('keeps an enum whose members match the resolved type', function (): void {
+    $property = modelProperty(buildModelSchema(ConflictedMetadataArticle::class), 'state');
+
+    expect($property->type)->toBe('string')
+        ->and($property->enum)->toBe(['on', 'off']);
+});
+
+it('keeps an enum while one union member matches its members', function (): void {
+    // A nullable column reaches the pass already widened to ['string', 'null'], so an every-member
+    // rule would strip the enum from every nullable enum column in an app.
+    $property = modelProperty(buildModelSchema(ConflictedMetadataArticle::class), 'tier');
+
+    expect($property->type)->toBe(['string', 'null'])
+        ->and($property->enum)->toBe(['free', 'paid']);
+});
+
+it('keeps a uuid format the resolved type does carry', function (): void {
+    // The one format in the table with no other positive assertion in this suite: a typo in its row
+    // would prune silently everywhere else.
+    $property = modelProperty(buildModelSchema(ConflictedMetadataArticle::class), 'token');
+
+    expect($property->type)->toBe('string')
+        ->and($property->format)->toBe('uuid');
+});
+
+it('keeps an enum on a property with no resolved type', function (): void {
+    // Nothing contradicts the members, so the enum is the only constraint the property has.
+    $property = modelProperty(buildModelSchema(ConflictedMetadataArticle::class), 'mode');
+
+    expect(is_undefined($property->type))->toBeTrue()
+        ->and($property->enum)->toBe(['auto', 'manual']);
+});
+
+it('keeps an enum when only some of its members match the resolved type', function (): void {
+    // A migration enum() column contributes string members only, so a mixed set is built directly.
+    // It still narrows the instance, so one matching member keeps the whole enum: members are never
+    // filtered individually.
+    $property = new OA\Property(['property' => 'label', 'type' => 'string', 'enum' => ['a', 5]]);
+
+    dropInapplicableKeywordsOn($property);
+
+    expect($property->enum)->toBe(['a', 5]);
+});
+
+it('matches an integer enum member against an integer-typed property', function (): void {
+    // The numeric member row names both `integer` and `number`, because JSON Schema's `integer` is a
+    // subset of `number`. Naming only `number` would read this legitimate pairing as a conflict.
+    $property = new OA\Property(['property' => 'weight', 'type' => 'integer', 'enum' => [1, 2]]);
+
+    dropInapplicableKeywordsOn($property);
+
+    expect($property->enum)->toBe([1, 2]);
+});
+
+it('keeps a format the applicability table does not list', function (): void {
+    // No migration head emits a format outside the table, so this shape is only reachable by
+    // building the property directly. An unlisted format is custom or newly registered and its
+    // applicable types are unknown here, so it must never be pruned. This is also the guard for a
+    // future numeric row: `int64` applies to `integer` even though the OpenAPI format registry
+    // spells its JSON data type `number`, so whoever adds the row must list both names.
+    $property = new OA\Property(['property' => 'size', 'type' => 'integer', 'format' => 'int64']);
+
+    dropInapplicableKeywordsOn($property);
+
+    expect($property->type)->toBe('integer')
+        ->and($property->format)->toBe('int64');
+});
+
+// endregion

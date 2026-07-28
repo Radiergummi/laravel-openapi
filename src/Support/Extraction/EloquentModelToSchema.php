@@ -31,9 +31,11 @@ use Symfony\Component\TypeInfo\Exception\UnsupportedException;
 use Symfony\Component\TypeInfo\Type;
 use Symfony\Component\TypeInfo\TypeResolver\TypeResolver;
 
+use function array_any;
 use function array_diff;
 use function array_filter;
 use function array_intersect;
+use function array_is_list;
 use function array_key_exists;
 use function array_keys;
 use function array_merge;
@@ -44,6 +46,9 @@ use function enum_exists;
 use function in_array;
 use function is_a;
 use function is_array;
+use function is_bool;
+use function is_float;
+use function is_int;
 use function is_string;
 use function ltrim;
 use function Radiergummi\OpenApi\copy_schema_fields;
@@ -84,6 +89,29 @@ final class EloquentModelToSchema
         'minItems' => ['array'],
         'maxItems' => ['array'],
         'uniqueItems' => ['array'],
+    ];
+
+    /**
+     * The formats this class can emit, mapped to the type members each is defined for. Unlike the
+     * keywords above, `format` is scoped per format rather than per type class, so it needs its own
+     * table.
+     *
+     * A format absent from this table is kept, never pruned: it is a custom or newly registered
+     * format whose applicable types are unknown here, and pruning on unrecognised would delete
+     * authored information. A new `format` producer therefore adds its row here.
+     *
+     * Every row is string-only today. Should a numeric format ever be added, it must list
+     * `['integer', 'number']` rather than the `number` the OpenAPI format registry spells: JSON
+     * Schema's `integer` is a subset of `number` but a distinct type name, so a literal
+     * transcription would prune the legitimate `{type: integer, format: int64}`.
+     *
+     * @var array<string, list<string>>
+     */
+    private const array FORMAT_TYPES = [
+        'uuid' => ['string'],
+        'ip' => ['string'],
+        'date' => ['string'],
+        'date-time' => ['string'],
     ];
 
     /**
@@ -723,6 +751,10 @@ final class EloquentModelToSchema
      * A union keeps a keyword as long as one member of that keyword's class remains, so
      * `['string', 'null']` keeps `maxLength` and `['integer', 'string']` keeps both families.
      *
+     * `format` and `enum` are checked separately afterwards. Neither is scoped to a type class:
+     * `format` is defined per format, and `enum` is a value-level constraint whose applicability
+     * depends on its members' own types.
+     *
      * Only the outer node is read, which is complete solely because the nullability split runs
      * before the migration writes: those keywords land beside a `oneOf`, never inside a branch.
      * Move the split downstream of them and a split property would carry an inapplicable keyword
@@ -752,6 +784,89 @@ final class EloquentModelToSchema
 
             $this->discardKeyword($modelClass, $property, $keyword, $members);
         }
+
+        $this->dropInapplicableFormat($modelClass, $property, $members);
+        $this->dropInapplicableEnum($modelClass, $property, $members);
+    }
+
+    /**
+     * Removes a `format` none of the resolved type members is defined for.
+     *
+     * A mismatched `format` is inert to validators (JSON Schema leaves an out-of-set instance type
+     * to pass) but client generators do read it, so an integer property left carrying `date` makes
+     * them emit a date accessor over an integer.
+     *
+     * @param class-string<Model> $modelClass
+     * @param list<string>        $members
+     */
+    private function dropInapplicableFormat(string $modelClass, OA\Property $property, array $members): void
+    {
+        $format = $property->format;
+
+        if (is_undefined($format) || !is_string($format)) {
+            return;
+        }
+
+        $applicableTypes = self::FORMAT_TYPES[$format] ?? null;
+
+        if ($applicableTypes === null || array_intersect($applicableTypes, $members) !== []) {
+            return;
+        }
+
+        $this->discardKeyword($modelClass, $property, 'format', $members);
+    }
+
+    /**
+     * Removes an `enum` no member of which could ever match the resolved type.
+     *
+     * The serious half of the disagreement: `enum` is checked against the instance value whatever
+     * the `type` says, so `{type: integer, enum: ['draft', 'published']}` matches nothing at all,
+     * an integer failing the `enum` and a string failing the `type`.
+     *
+     * One compatible member is enough to keep the whole `enum`, since it still narrows the instance
+     * meaningfully. Filtering individual members out of a mixed set is deliberately not done here.
+     *
+     * @param class-string<Model> $modelClass
+     * @param list<string>        $members
+     */
+    private function dropInapplicableEnum(string $modelClass, OA\Property $property, array $members): void
+    {
+        $enum = $property->enum;
+
+        // An empty enum carries no member to contradict the type; it is not this pass's business.
+        if (is_undefined($enum) || !is_array($enum) || $enum === []) {
+            return;
+        }
+
+        $matches = fn(mixed $member): bool => $this->enumMemberMatches($member, $members);
+
+        if (!array_any($enum, $matches)) {
+            $this->discardKeyword($modelClass, $property, 'enum', $members);
+        }
+    }
+
+    /**
+     * Reports whether one `enum` member's own JSON Schema type is among the resolved type members.
+     *
+     * An integer member names `number` too, and a float names `integer` too: JSON Schema's
+     * `integer` is a subset of `number`, and it counts a zero-fraction `1.0` as an integer instance.
+     *
+     * @param list<string> $types
+     */
+    private function enumMemberMatches(mixed $member, array $types): bool
+    {
+        $memberTypes = match (true) {
+            is_string($member) => ['string'],
+            is_bool($member) => ['boolean'],
+            is_int($member), is_float($member) => ['integer', 'number'],
+            $member === null => ['null'],
+            is_array($member) => array_is_list($member) ? ['array'] : ['object'],
+
+            // A member type the mapping does not name cannot be judged, so it counts as matching.
+            default => [],
+        };
+
+        return $memberTypes === [] || array_intersect($memberTypes, $types) !== [];
     }
 
     /**
