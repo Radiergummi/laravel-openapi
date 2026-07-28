@@ -9,6 +9,8 @@
 # Env:
 #   PR_ASSIGNEE   maintainer to assign/request review (default: Radiergummi)
 #   PR_DRAFT=1    open as a draft instead of ready-for-review
+#   PR_HEAD       branch to open the PR from; defaults to the unique pushed
+#                 `<type>/<issue>-*` branch, which is what `start-issue` creates
 #
 # Echoes the created PR URL on success.
 set -euo pipefail
@@ -17,6 +19,37 @@ issue="${1:?usage: open-pr <issue-number> <title> [body-file]}"
 title="${2:?usage: open-pr <issue-number> <title> [body-file]}"
 body_file="${3:--}"
 assignee="${PR_ASSIGNEE:-Radiergummi}"
+
+# `gh pr create` infers the head from the checked-out branch, but `start-issue` checks
+# nothing out on purpose, so the head has to be named explicitly. Derive it from the
+# issue number unless the caller pins it.
+head="${PR_HEAD:-}"
+if [ -z "$head" ]; then
+  # Prune first: a remote-tracking ref for a branch deleted after its merge would
+  # otherwise look like a perfectly good single match, and fail at GitHub instead.
+  git fetch --prune origin >/dev/null 2>&1 || true
+
+  refs=$(
+    git for-each-ref --format='%(refname:short)' \
+      'refs/remotes/origin/feat/*' 'refs/remotes/origin/fix/*' \
+      'refs/remotes/origin/chore/*' 'refs/remotes/origin/docs/*'
+  )
+  # The trailing '-' keeps '587' off 'fix/5871-…'; sed strips the remote prefix.
+  candidates=$(printf '%s\n' "$refs" | sed 's|^origin/||' \
+    | grep -E "^(feat|fix|chore|docs)/${issue}-" || true)
+  count=$(printf '%s' "$candidates" | grep -c . || true)
+  if [ "$count" -eq 1 ]; then
+    head="$candidates"
+  elif [ "$count" -eq 0 ]; then
+    echo "error: no pushed branch matches '<type>/${issue}-*';" >&2
+    echo "       run bin/start-issue first, or set PR_HEAD" >&2
+    exit 2
+  else
+    echo "error: several branches match '<type>/${issue}-*'; set PR_HEAD to pick one:" >&2
+    printf '%s\n' "$candidates" | sed 's/^/  /' >&2
+    exit 2
+  fi
+fi
 
 # Read the bespoke body (file or stdin).
 if [ "$body_file" = "-" ]; then
@@ -50,6 +83,8 @@ draft_args=()
 [ "${PR_DRAFT:-0}" = "1" ] && draft_args+=(--draft)
 
 gh pr create \
+  --base main \
+  --head "$head" \
   --title "$title" \
   --body "$body" \
   --assignee "$assignee" \
