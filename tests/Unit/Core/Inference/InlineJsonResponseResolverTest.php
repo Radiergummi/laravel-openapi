@@ -366,6 +366,59 @@ it('documents a 204 without a body schema', function (): void {
     expect($serialized)->not->toHaveKey('content');
 });
 
+it('documents a 205 without the readable body the call writes', function (): void {
+    $result = inlineJsonResolver()->resolvePrimaryResponse(inlineJsonActionDescriptor('resetContentStatus'));
+    $response = primaryResponseAnnotation($result);
+
+    expect($response)->not->toBeNull()
+        ->and($response->response)->toBe('205')
+        ->and($response->description)->toBe('Reset Content')
+        // The status is authored, so it must still defer the resource convention like any explicit one.
+        ->and($result?->statusIsExplicit)->toBeTrue();
+
+    /** @var array<string, mixed> $serialized */
+    $serialized = json_decode(json_encode($response, JSON_THROW_ON_ERROR), true, 512, JSON_THROW_ON_ERROR);
+
+    expect($serialized)->not->toHaveKey('content');
+});
+
+it('notes the discarded 205 body once, without advising an authoring attribute', function (): void {
+    $logger = recordingLogger();
+
+    inlineJsonResolver($logger)->resolvePrimaryResponse(inlineJsonActionDescriptor('resetContentStatus'));
+
+    expect($logger->records)->toHaveCount(1)
+        ->and($logger->records[0]['message'])->toContain(InlineJsonFixtureController::class)
+        ->and($logger->records[0]['message'])->toContain('resetContentStatus')
+        ->and($logger->records[0]['message'])->toContain('205')
+        // A response *is* inferred here, and advising #[Response] would invite re-authoring the very
+        // body just dropped.
+        ->and($logger->records[0]['message'])->not->toContain('no response inferred')
+        ->and($logger->records[0]['message'])->not->toContain('#[Response]');
+});
+
+it('keeps the untouched 204 path silent', function (): void {
+    // The discarded-body note must not start firing on the gate this change does not move.
+    $logger = recordingLogger();
+
+    inlineJsonResolver($logger)->resolvePrimaryResponse(inlineJsonActionDescriptor('noContentStatus'));
+
+    expect($logger->records)->toBeEmpty();
+});
+
+it('keeps a content-bearing 2xx schema and stays silent', function (): void {
+    $logger = recordingLogger();
+
+    $response = primaryResponseAnnotation(
+        inlineJsonResolver($logger)->resolvePrimaryResponse(inlineJsonActionDescriptor('literalStatus')),
+    );
+
+    expect($response)->not->toBeNull()
+        ->and($response->response)->toBe('201')
+        ->and(inlineJsonSchema($response)['type'])->toBe('object')
+        ->and($logger->records)->toBeEmpty();
+});
+
 // endregion
 
 // region Refused shapes

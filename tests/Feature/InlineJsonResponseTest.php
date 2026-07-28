@@ -15,6 +15,7 @@ use Radiergummi\OpenApi\Support\Generator\OpenApiGenerator;
 use Radiergummi\OpenApi\Support\Spec\SpecRegistry;
 use Radiergummi\OpenApi\Tests\Fixtures\InlineJsonFixtureController;
 use Radiergummi\OpenApi\Tests\Fixtures\InlineJsonWithAttributeController;
+use Radiergummi\OpenApi\Tests\Fixtures\ResourceDestroyResetContentController;
 
 use function array_any;
 use function str_contains;
@@ -188,5 +189,119 @@ it('falls back to the bare 200 and logs a note for a variable body', function ()
 
     expect($noted)->toBeTrue();
 });
+
+// endregion
+
+// region Contentless statuses
+
+it('documents a literal 205 without the body the call writes', function (): void {
+    Route::get('/oa-fixture/reset-content', [InlineJsonFixtureController::class, 'resetContentStatus']);
+
+    $spec = generateSpec();
+    $responses = $spec['paths']['/oa-fixture/reset-content']['get']['responses'];
+
+    expect($responses)->toHaveKey('205')
+        ->and($responses['205'])->not->toHaveKey('content')
+        ->and($responses['205']['description'])->toBe('Reset Content');
+});
+
+it('documents a constructed JsonResponse 205 without a body', function (): void {
+    Route::get('/oa-fixture/reset-constructed', [
+        InlineJsonFixtureController::class,
+        'constructedResetContent',
+    ]);
+
+    $spec = generateSpec();
+    $responses = $spec['paths']['/oa-fixture/reset-constructed']['get']['responses'];
+
+    expect($responses)->toHaveKey('205')
+        ->and($responses['205'])->not->toHaveKey('content');
+});
+
+it('documents a chained ->setStatusCode(205) without a body', function (): void {
+    Route::get('/oa-fixture/reset-chained', [
+        InlineJsonFixtureController::class,
+        'setStatusCodeResetContent',
+    ]);
+
+    $spec = generateSpec();
+    $responses = $spec['paths']['/oa-fixture/reset-chained']['get']['responses'];
+
+    expect($responses)->toHaveKey('205')
+        ->and($responses['205'])->not->toHaveKey('content');
+});
+
+it('keeps a resourceful destroy 205 body-less rather than letting the conventional 204 reclaim it', function (): void {
+    Route::delete('/oa-fixture/widgets/{widget}', [
+        ResourceDestroyResetContentController::class,
+        'destroy',
+    ]);
+
+    $spec = generateSpec();
+    $responses = $spec['paths']['/oa-fixture/widgets/{widget}']['delete']['responses'];
+
+    expect($responses)->toHaveKey('205')
+        ->and($responses['205'])->not->toHaveKey('content')
+        ->and($responses)->not->toHaveKey('204');
+});
+
+it('leaves a literal 204 untouched', function (): void {
+    // The pre-read gate this change does not move: a 204 is claimed before any body is read.
+    Route::get('/oa-fixture/no-content-literal', [InlineJsonFixtureController::class, 'noContentStatus']);
+
+    $spec = generateSpec();
+    $responses = $spec['paths']['/oa-fixture/no-content-literal']['get']['responses'];
+
+    expect($responses)->toHaveKey('204')
+        ->and($responses['204'])->not->toHaveKey('content')
+        ->and($responses['204']['description'])->toBe('No Content');
+});
+
+it('still documents the body on a content-bearing 2xx', function (string $action, string $status): void {
+    // The guard against swallowing readable bodies: only a contentless status may lose its schema.
+    Route::get('/oa-fixture/content-bearing', [InlineJsonFixtureController::class, $action]);
+
+    $spec = generateSpec();
+    $responses = $spec['paths']['/oa-fixture/content-bearing']['get']['responses'];
+
+    expect($responses[$status]['content']['application/json']['schema']['type'])->toBe('object');
+})->with([
+    'literal 200' => ['literalObject', '200'],
+    'literal 201' => ['literalStatus', '201'],
+    'constructed 201' => ['constructedWithStatus', '201'],
+]);
+
+it('still degrades a literal 304 to a body-less conventional 200', function (): void {
+    // A 304 forbids content too, but it is refused as a non-2xx error status before the body gates.
+    Route::get('/oa-fixture/not-modified', [InlineJsonFixtureController::class, 'notModifiedStatus']);
+
+    $spec = generateSpec();
+    $responses = $spec['paths']['/oa-fixture/not-modified']['get']['responses'];
+
+    expect($responses)->toHaveKey('200')
+        ->and($responses['200'])->not->toHaveKey('content')
+        ->and($responses)->not->toHaveKey('304');
+});
+
+// The three rows below are the 205 shapes this change deliberately leaves degrading to a
+// conventional 200, because no body was read and an unreadable body is unknown rather than empty.
+// #614 owns the widening that would turn them into body-less 205s, so pinning them here makes that
+// movement visible instead of silent.
+it('leaves a 205 whose body could not be read degrading to a conventional 200', function (
+    string $action,
+): void {
+    Route::get('/oa-fixture/reset-degrade', [InlineJsonFixtureController::class, $action]);
+
+    $spec = generateSpec();
+    $responses = $spec['paths']['/oa-fixture/reset-degrade']['get']['responses'];
+
+    expect($responses)->toHaveKey('200')
+        ->and($responses['200'])->not->toHaveKey('content')
+        ->and($responses)->not->toHaveKey('205');
+})->with([
+    'empty literal body' => ['emptyResetContent'],
+    'unreadable variable body' => ['variableBodyResetContent'],
+    'resource argument' => ['resourceResetContent'],
+]);
 
 // endregion

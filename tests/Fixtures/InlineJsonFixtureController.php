@@ -8,6 +8,8 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 use Radiergummi\OpenApi\Tests\Fixtures\Models\Article;
+use Radiergummi\OpenApi\Tests\Fixtures\Models\Author;
+use Radiergummi\OpenApi\Tests\Fixtures\Resources\NestedAuthorResource;
 use Symfony\Component\HttpFoundation\Response as SymfonyResponse;
 
 // The response() calls below are deliberately unqualified — the realistic controller idiom — so
@@ -237,6 +239,52 @@ class InlineJsonFixtureController extends Controller
         $preview = new JsonResponse(['first' => true]);
 
         return new JsonResponse(['second' => true], 201);
+    }
+
+    // endregion
+
+    // region Contentless statuses
+
+    // RFC 9110 forbids content on a 205, so the readable body below cannot be represented.
+    public function resetContentStatus(): JsonResponse
+    {
+        return response()->json(['ok' => true], 205);
+    }
+
+    public function constructedResetContent(): JsonResponse
+    {
+        return new JsonResponse(['ok' => true], 205);
+    }
+
+    public function setStatusCodeResetContent(): JsonResponse
+    {
+        return response()->json(['ok' => true])->setStatusCode(205);
+    }
+
+    // The three shapes below reach the 205 with no readable body, so they keep today's degrade to
+    // the conventional status: an unreadable body is unknown, not affirmatively empty.
+    public function emptyResetContent(): JsonResponse
+    {
+        return response()->json([], 205);
+    }
+
+    public function variableBodyResetContent(): JsonResponse
+    {
+        $payload = ['ok' => true];
+
+        return response()->json($payload, 205);
+    }
+
+    public function resourceResetContent(): JsonResponse
+    {
+        return response()->json(NestedAuthorResource::make(Author::query()->firstOrFail()), 205);
+    }
+
+    // A 304 is contentless too, but it never reaches the body gates: a non-2xx literal is refused
+    // as an error response first.
+    public function notModifiedStatus(): JsonResponse
+    {
+        return response()->json(['ok' => true], 304);
     }
 
     // endregion
