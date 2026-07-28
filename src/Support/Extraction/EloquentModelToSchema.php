@@ -14,6 +14,7 @@ use Illuminate\Database\Eloquent\Casts\AsStringable;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
 use OpenApi\Annotations as OA;
+use OpenApi\Generator;
 use PHPStan\PhpDocParser\Ast\PhpDoc\PropertyTagValueNode;
 use PHPStan\PhpDocParser\Ast\Type\IdentifierTypeNode;
 use PHPStan\PhpDocParser\Ast\Type\TypeNode;
@@ -32,6 +33,7 @@ use Symfony\Component\TypeInfo\TypeResolver\TypeResolver;
 
 use function array_diff;
 use function array_filter;
+use function array_intersect;
 use function array_key_exists;
 use function array_keys;
 use function array_merge;
@@ -64,6 +66,34 @@ use function ucwords;
 #[Scoped]
 final class EloquentModelToSchema
 {
+    /**
+     * Keywords that constrain a single JSON Schema type class, mapped to the type members they can
+     * apply to. A keyword outside its class is inert, so it is dropped rather than emitted.
+     *
+     * @var array<string, list<string>>
+     */
+    private const array TYPE_SCOPED_KEYWORDS = [
+        'minimum' => ['integer', 'number'],
+        'maximum' => ['integer', 'number'],
+        'exclusiveMinimum' => ['integer', 'number'],
+        'exclusiveMaximum' => ['integer', 'number'],
+        'multipleOf' => ['integer', 'number'],
+        'minLength' => ['string'],
+        'maxLength' => ['string'],
+        'pattern' => ['string'],
+        'minItems' => ['array'],
+        'maxItems' => ['array'],
+        'uniqueItems' => ['array'],
+    ];
+
+    /**
+     * Discarded-keyword warnings already emitted, keyed `Model::property.keyword`. propertyFor() is
+     * not memoized, so a model reached from many routes would otherwise repeat the same warning.
+     *
+     * @var array<string, true>
+     */
+    private array $reportedKeywordConflicts = [];
+
     /**
      * Per-model metadata memo; null marks a non-instantiable model (warned once).
      *
@@ -128,6 +158,7 @@ final class EloquentModelToSchema
             $this->migrationColumnsFor($metadata['table'])[$propertyName] ?? null,
             $metadata['attributes'],
         );
+        $this->dropInapplicableKeywords($modelClass, $property);
 
         return $property;
     }
@@ -685,6 +716,79 @@ final class EloquentModelToSchema
     }
 
     /**
+     * Removes keywords the resolved type cannot apply to, once every source has contributed. A cast
+     * or `@property` tag that disagrees with the migration otherwise leaves an inert pairing behind,
+     * such as an `increments()` column's `minimum: 0` on a property a tag typed as a string.
+     *
+     * A union keeps a keyword as long as one member of that keyword's class remains, so
+     * `['string', 'null']` keeps `maxLength` and `['integer', 'string']` keeps both families.
+     *
+     * Only the outer node is read: a property that upstream nullability handling already split into
+     * `oneOf` carries its type inside a branch, and keeps an inapplicable keyword there.
+     *
+     * @param class-string<Model> $modelClass
+     */
+    private function dropInapplicableKeywords(string $modelClass, OA\Property $property): void
+    {
+        $type = $property->type;
+
+        // Without a resolved type every keyword still constrains whatever instance arrives, so none
+        // is inert (the undefined sentinel is itself a string, so guard it first).
+        if (is_undefined($type)) {
+            return;
+        }
+
+        $members = array_values(is_array($type) ? $type : [$type]);
+
+        foreach (self::TYPE_SCOPED_KEYWORDS as $keyword => $applicableTypes) {
+            if (
+                is_undefined($property->{$keyword})
+                || array_intersect($applicableTypes, $members) !== []
+            ) {
+                continue;
+            }
+
+            $this->discardKeyword($modelClass, $property, $keyword, $members);
+        }
+    }
+
+    /**
+     * Resets one keyword to the undefined sentinel, warning about it once per run. A discard means
+     * the model and its migration genuinely disagree about a column, which the user should hear
+     * rather than have papered over.
+     *
+     * @param class-string<Model> $modelClass
+     * @param list<string>        $members
+     */
+    private function discardKeyword(
+        string $modelClass,
+        OA\Property $property,
+        string $keyword,
+        array $members,
+    ): void {
+        $property->{$keyword} = Generator::UNDEFINED;
+
+        $key = "{$modelClass}::{$property->property}.{$keyword}";
+
+        if (array_key_exists($key, $this->reportedKeywordConflicts)) {
+            return;
+        }
+
+        $this->reportedKeywordConflicts[$key] = true;
+
+        $this->logger->warning(
+            'EloquentModelToSchema: dropped a keyword inapplicable to the resolved type; the model '
+            . 'and its migration disagree on this column',
+            [
+                'model' => $modelClass,
+                'property' => $property->property,
+                'keyword' => $keyword,
+                'type' => $members,
+            ],
+        );
+    }
+
+    /**
      * Related models become a pooled `$ref`; other classes are shaped by JsonSchemaFromType.
      * Supplied as the leaf-class callback to JsonSchemaFromType.
      *
@@ -841,6 +945,7 @@ final class EloquentModelToSchema
                 $migrationColumns[$property->property] ?? null,
                 $metadata['attributes'],
             );
+            $this->dropInapplicableKeywords($modelClass, $property);
         }
 
         // Server-managed columns (primary key, timestamps, soft-delete) must never be sent by a
