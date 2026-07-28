@@ -28,6 +28,10 @@ use function Radiergummi\OpenApi\is_undefined;
  *   check requires.
  * - A schema carrying no constraints at all is left untouched: it already permits null, and a
  *   `oneOf` would in fact forbid it, since null matches both branches and exactly-one then fails.
+ * - An empty `type` array is degenerate input this rule can neither widen nor wrap, so it is
+ *   returned exactly as supplied (`type: []`), for spec validation to report: widening appends to
+ *   nothing and yields `type: ['null']`, which looks valid but admits only null, and wrapping
+ *   renders as `oneOf: [{}, {type: 'null'}]`, which rejects null instead.
  * - A schema that already permits null (a `'null'` type, or a `oneOf`/`anyOf` branch typed `null`)
  *   is likewise left untouched, so applying the rule twice is the same as applying it once.
  *
@@ -139,8 +143,8 @@ final class NullableSchema
     /**
      * Widens a `type` consisting of nothing but scalars to include `'null'`, in place.
      *
-     * Returns false when the type is structured, mixed, or absent, meaning the schema needs the
-     * `oneOf` split instead.
+     * Returns false when the type is structured, mixed, empty, or absent, meaning the schema needs
+     * the `oneOf` split instead.
      */
     private static function widenType(OA\Schema $target): bool
     {
@@ -156,7 +160,7 @@ final class NullableSchema
             return true;
         }
 
-        if (!is_defined($type) || !is_array($type)) {
+        if (!is_defined($type) || !is_array($type) || $type === []) {
             return false;
         }
 
@@ -169,6 +173,21 @@ final class NullableSchema
         $target->type = [...$type, 'null'];
 
         return true;
+    }
+
+    /**
+     * Reports whether a field is a `type` carrying an empty array.
+     *
+     * That is degenerate input rather than an absent constraint: the array form means "one of these
+     * types", an empty list offers none, and the meta-schema requires it non-empty. Neither
+     * transformation salvages it, so it stays on the node exactly as supplied and spec validation
+     * can report it. Widening leaves `type: ['null']`, admitting only null; moving it into the
+     * wrapper makes it vanish (a bare inner schema serialises 3.0-style, which filters an empty type
+     * array out), leaving `oneOf: [{}, {type: 'null'}]`, which rejects null instead.
+     */
+    private static function isEmptyTypeArray(string $field, mixed $value): bool
+    {
+        return $field === 'type' && $value === [];
     }
 
     /**
@@ -186,6 +205,7 @@ final class NullableSchema
         foreach (get_object_vars($target) as $field => $value) {
             if (
                 !is_schema_field($field, $value)
+                || self::isEmptyTypeArray($field, $value)
                 || in_array($field, self::DOCUMENTATION_KEYWORDS, strict: true)
                 || in_array($field, self::ANNOTATION_CARRIERS, strict: true)
             ) {
