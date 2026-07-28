@@ -723,8 +723,10 @@ final class EloquentModelToSchema
      * A union keeps a keyword as long as one member of that keyword's class remains, so
      * `['string', 'null']` keeps `maxLength` and `['integer', 'string']` keeps both families.
      *
-     * Only the outer node is read: a property that upstream nullability handling already split into
-     * `oneOf` carries its type inside a branch, and keeps an inapplicable keyword there.
+     * Only the outer node is read, which is complete solely because the nullability split runs
+     * before the migration writes: those keywords land beside a `oneOf`, never inside a branch.
+     * Move the split downstream of them and a split property would carry an inapplicable keyword
+     * inside its branch, where this pass cannot see it.
      *
      * @param class-string<Model> $modelClass
      */
