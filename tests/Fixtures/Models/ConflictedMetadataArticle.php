@@ -14,12 +14,24 @@ use Illuminate\Database\Eloquent\Model;
  * once, since an `unsignedDecimal` head yields `minimum` alongside the scale-derived `multipleOf`
  * while the `decimal:2` cast resolves the property to a string.
  *
+ * The value-level pairs sit alongside them: `status`/`flags` contradict their `enum` column and
+ * `published_on`/`reference` contradict their date and uuid `format`, while `state`, `tier`, `token`
+ * and the untyped `mode` are the compatible counterparts that must survive.
+ *
  * @property int          $code
  * @property int          $device
+ * @property list<string> $flags
  * @property string       $id
+ * @property mixed        $mode
+ * @property int          $published_on
+ * @property int          $reference
  * @property int          $score
  * @property null|string  $slug
+ * @property string       $state
+ * @property int          $status
  * @property list<string> $tags
+ * @property null|string  $tier
+ * @property string       $token
  */
 class ConflictedMetadataArticle extends Model
 {
