@@ -39,7 +39,10 @@ use function is_string;
  *
  * The attribute decides the resource class and cardinality outright, but not the status: the
  * wrapper's authored status is read from the return expression and rides along on the target, so an
- * attributed action returning `response()->json(<resource>, 403)` refuses like an inferred one.
+ * attributed action returning `response()->json(<resource>, 403)` yields the response entirely. That
+ * read covers a **bare** json call only; a chained form (`->header(...)`, `->additional(...)`) hides
+ * the status, and the attribute's resource is then documented under the conventional status
+ * ({@see ReturnExpressionResourceReader::readAuthoredStatus()}).
  */
 final readonly class ResourceClassLocator implements ResourceTargetLocator
 {

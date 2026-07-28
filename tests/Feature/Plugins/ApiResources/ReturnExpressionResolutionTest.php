@@ -409,6 +409,20 @@ class ReturnExpressionController extends Controller
     }
 
     /**
+     * A sentinel `return null;` beside an authored status. Unlike a bare *resource* return, which
+     * authors no status and disagrees, this branch is skipped outright, so the lone `403` stands.
+     */
+    #[ResponseResource(NestedAuthorResource::class)]
+    public function attributedSentinelAndForbidden(bool $flag): ?JsonResponse
+    {
+        if ($flag) {
+            return null;
+        }
+
+        return response()->json(NestedAuthorResource::make(Author::query()->firstOrFail()), 403);
+    }
+
+    /**
      * The mirror of {@see attributedMixedErrorAndBare()}: the *success* status comes first, so the
      * disagreement is only visible to a reconciliation that compares every branch rather than
      * keeping whichever status it read last.
@@ -1369,6 +1383,25 @@ it('drops the status claim, not the attributed resource, when the branches disag
         ->and(successStatuses($spec['paths']['/attributed-mixed']['get']['responses']))->toBe([200]);
 });
 
+it('lets a lone authored status stand beside a sentinel return, which is no branch at all', function (): void {
+    Route::get('/attributed-sentinel-forbidden', [
+        ReturnExpressionController::class,
+        'attributedSentinelAndForbidden',
+    ]);
+
+    $spec = generateSpec();
+    $responses = $spec['paths']['/attributed-sentinel-forbidden']['get']['responses'];
+
+    // The distinction the reconciliation rests on, and the one easiest to conflate: `return null;`
+    // (and a bare `return;`) is an ignored sentinel skipped before any comparison, so the 403 is the
+    // only status authored and the response yields. A branch returning a bare *resource* would author
+    // no status and disagree instead, keeping the resource at the conventional 200 — the case above.
+    expect(successStatuses($responses))->toBe([200])
+        ->and($responses['200'])->not->toHaveKey('content')
+        ->and($responses)->toHaveKey('403')
+        ->and($spec['components']['schemas'] ?? [])->not->toHaveKey('NestedAuthorResource');
+});
+
 it('drops the status claim whichever branch order the disagreement arrives in', function (): void {
     Route::get('/attributed-success-then-error', [
         ReturnExpressionController::class,
@@ -1397,19 +1430,19 @@ it('yields when every branch of an attributed action agrees on the same non-2xx 
         ->and($spec['components']['schemas'] ?? [])->not->toHaveKey('NestedAuthorResource');
 });
 
-it('pins a residual: an unrecognised chain after json() still leaves the envelope on a phantom 200', function (): void {
+it('pins a residual: any chain after json() still leaves the envelope on a phantom 200', function (): void {
     Route::get('/attributed-header-chain', [ReturnExpressionController::class, 'attributedHeaderChain']);
 
     $spec = generateSpec();
     $responses = $spec['paths']['/attributed-header-chain']['get']['responses'];
     $schema = successSchema($spec, '/attributed-header-chain');
 
-    // Known-bad output, pinned so it cannot change unnoticed — not correct output. Chaining anything
-    // but ->additional() after json() leaves the status unread; that much matches the inference path,
-    // but the consequence does not. There the unread chain costs the *resource*, so nothing is
-    // documented; here the attribute names it regardless, so the envelope and its component still
-    // land on a 200 beside the authored 403 the action actually returns. That is this bug's own shape,
-    // one chain link away, and closing it needs a status-preserving-chain whitelist.
+    // Known-bad output, pinned so it cannot change unnoticed, not correct output. Only a bare
+    // response()->json(...) is read for the status here, so *any* trailing link hides it, including
+    // the ->additional() the inference path does unwrap. And the consequence is worse than there:
+    // that path loses the resource with the status, so nothing is documented, whereas the attribute
+    // names the resource regardless, leaving the envelope and its component on a 200 beside the
+    // authored 403 the action actually returns. This bug's own shape, one chain link away.
     expect($schema['properties']['data']['$ref'])->toBe('#/components/schemas/NestedAuthorResource')
         ->and(successStatuses($responses))->toBe([200])
         ->and($responses)->toHaveKey('403')

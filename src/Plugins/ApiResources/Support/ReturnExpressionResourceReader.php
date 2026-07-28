@@ -230,10 +230,11 @@ final class ReturnExpressionResourceReader
      * action with `#[ResponseResource]`, which is nonsense advice on an action that already carries
      * it.
      *
-     * The status is read from the outer node only, so nothing is unwrapped: no member of
-     * {@see self::RESOURCE_PRESERVING_CHAIN_METHODS} exists on `JsonResponse`, which is what a
-     * `json()` call returns, so no whitelisted link can sit above one. Revisit if a method that does
-     * exist there is ever added to that list, or the two paths will disagree.
+     * Only a **bare** `response()->json(...)` is read, never a chained form: the status is taken from
+     * the outer node, so any trailing link (`->header(...)`, `->additional(...)`) hides the call and
+     * the status reads back null. This is a known divergence from {@see targetFromExpression()},
+     * which unwraps {@see self::RESOURCE_PRESERVING_CHAIN_METHODS} and retries. Closing it means
+     * whitelisting the links that cannot change a status, not extending that list.
      *
      * @throws ReflectionException
      */
@@ -271,8 +272,10 @@ final class ReturnExpressionResourceReader
 
             $status = $expression === null ? null : $this->authoredStatus($expression);
 
-            // Branches that author different statuses (a bare return against an authored one
-            // included) say nothing certain, so the claim is dropped rather than guessed.
+            // Two branches that author different statuses say nothing certain, so the claim is
+            // dropped rather than guessed. A branch authoring *no* status counts as a disagreement:
+            // it returns something other than a json wrapper, e.g. a bare resource. Not to be
+            // confused with a bare `return;`, skipped above, which is no branch at all.
             if ($seen && $status !== $agreed) {
                 return null;
             }

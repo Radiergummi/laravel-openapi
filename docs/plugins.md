@@ -292,9 +292,12 @@ Recognised shapes:
   Chaining anything but `->additional(...)` after `json()` — `->header(...)`,
   `->setStatusCode(...)` — makes the scan refuse the expression outright, so no
   resource is resolved and the operation falls back to a bare `200`. On an action
-  carrying `#[ResponseResource]` the resource survives that refusal, since the
-  attribute named it rather than the body: the envelope lands on the bare `200`
-  alongside the authored error status. A known gap, tracked separately. (Distinct from
+  carrying `#[ResponseResource]` the rule is narrower and the outcome is worse: the
+  status is read from a **bare** `response()->json(...)` only, so *every* chained
+  form hides it — `->additional(...)` included, unlike above — and because the
+  attribute named the resource rather than the body, the resource survives the
+  refusal. Its envelope then lands on that `200` alongside the authored error
+  status. A known gap, tracked separately. (Distinct from
   the literal-body `->setStatusCode()` rule in
   [Auto-derivation → Inline JSON responses](auto-derivation.md#inline-json-responses),
   which reads a literal body rather than a resource.)
