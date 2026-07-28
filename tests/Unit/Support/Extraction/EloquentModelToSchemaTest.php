@@ -833,7 +833,8 @@ it('keeps a uuid format the resolved type does carry', function (): void {
 });
 
 it('keeps an enum on a property with no resolved type', function (): void {
-    // Nothing contradicts the members, so the enum is the only constraint the property has.
+    // An untyped property short-circuits the whole pass before either value-level check runs, so
+    // this covers that early return rather than the enum rule itself.
     $property = modelProperty(buildModelSchema(ConflictedMetadataArticle::class), 'mode');
 
     expect(is_undefined($property->type))->toBeTrue()

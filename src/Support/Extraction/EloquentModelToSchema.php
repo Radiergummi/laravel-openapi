@@ -833,7 +833,9 @@ final class EloquentModelToSchema
     {
         $enum = $property->enum;
 
-        // An empty enum carries no member to contradict the type; it is not this pass's business.
+        // An empty enum (a caseless backed enum cast produces one) carries no member that could
+        // contradict the type, so pruning it here would report a model/migration disagreement that
+        // does not exist. Whether such a schema should be emitted at all is the producer's question.
         if (is_undefined($enum) || !is_array($enum) || $enum === []) {
             return;
         }
