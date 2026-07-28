@@ -90,6 +90,12 @@ class AuthoredCreationBodyController extends Controller
         return [];
     }
 
+    #[Response(status: 201, description: 'Created', schema: ['type' => ['null']])]
+    public function nullOnlyPrimary(): array
+    {
+        return [];
+    }
+
     #[Response(status: 201, description: 'Created')]
     public function contentlessPrimary(): array
     {
@@ -227,6 +233,18 @@ it('keeps the conventional Location header on a 201 mixing scalar and object typ
     $response = createdResponse('/conventional/mixed-type', 'get');
 
     expect($response)->not->toBeNull()
+        ->and($response['headers'] ?? [])->toHaveKey('Location');
+});
+
+// Filtering `null` out of a type array re-creates the empty all-quantifier one level inside the
+// guard against it. A body typed only `null` states no scalar, and agrees with the content-less
+// 201: both assert there is nothing addressable, so both keep the header.
+it('keeps the conventional Location header on a 201 typed only null', function (): void {
+    Route::get('/conventional/null-only', [AuthoredCreationBodyController::class, 'nullOnlyPrimary']);
+
+    $response = createdResponse('/conventional/null-only', 'get');
+
+    expect($response['content']['application/json']['schema']['type'])->toBe(['null'])
         ->and($response['headers'] ?? [])->toHaveKey('Location');
 });
 
