@@ -33,6 +33,14 @@ class BinaryFileCreationController extends Controller
     }
 }
 
+class NullableScalarCreationController extends Controller
+{
+    public function store(): ?string
+    {
+        throw new LogicException('Signature-only fixture; never invoked.');
+    }
+}
+
 class ResourceCreationController extends Controller
 {
     public function store(): PassthroughArticleResource
@@ -66,6 +74,18 @@ class AuthoredCreationBodyController extends Controller
 
     #[Response(status: 201, description: 'Created', schema: ['properties' => ['id' => ['type' => 'integer']]])]
     public function typelessPrimary(): array
+    {
+        return [];
+    }
+
+    #[Response(status: 201, description: 'Created', schema: ['type' => ['object', 'null']])]
+    public function nullableObjectPrimary(): array
+    {
+        return [];
+    }
+
+    #[Response(status: 201, description: 'Created', schema: ['type' => ['string', 'object']])]
+    public function mixedTypePrimary(): array
     {
         return [];
     }
@@ -141,6 +161,18 @@ it('drops the conventional Location header from a scalar JSON 201', function ():
         ->and($response['headers'] ?? [])->not->toHaveKey('Location');
 });
 
+// OAS 3.1 spells a nullable scalar as a type array, the normal shape for `?string`. It is exactly
+// as un-addressable as the bare scalar, so it suppresses too.
+it('drops the conventional Location header from a nullable-scalar 201', function (): void {
+    Route::post('/conventional/nullable-scalar', [NullableScalarCreationController::class, 'store']);
+
+    $response = createdResponse('/conventional/nullable-scalar');
+
+    expect($response)->not->toBeNull()
+        ->and($response['content']['application/json']['schema']['type'])->toBe(['string', 'null'])
+        ->and($response['headers'] ?? [])->not->toHaveKey('Location');
+});
+
 it('drops the conventional Location header from a scalar non-primary 201', function (): void {
     Route::get('/conventional/scalar-additional', [AuthoredCreationBodyController::class, 'scalarNonPrimary'])
         ->middleware('throttle:60,1');
@@ -172,6 +204,27 @@ it('keeps the conventional Location header on an object-bodied 201', function ()
     Route::get('/conventional/object', [AuthoredCreationBodyController::class, 'objectPrimary']);
 
     $response = createdResponse('/conventional/object', 'get');
+
+    expect($response)->not->toBeNull()
+        ->and($response['headers'] ?? [])->toHaveKey('Location');
+});
+
+// The keep side of the type-array rule: one non-scalar member is enough to make the body
+// addressable, whether the array is a nullable object or a genuine union.
+it('keeps the conventional Location header on a nullable-object 201', function (): void {
+    Route::get('/conventional/nullable-object', [AuthoredCreationBodyController::class, 'nullableObjectPrimary']);
+
+    $response = createdResponse('/conventional/nullable-object', 'get');
+
+    expect($response)->not->toBeNull()
+        ->and($response['content']['application/json']['schema']['type'])->toBe(['object', 'null'])
+        ->and($response['headers'] ?? [])->toHaveKey('Location');
+});
+
+it('keeps the conventional Location header on a 201 mixing scalar and object types', function (): void {
+    Route::get('/conventional/mixed-type', [AuthoredCreationBodyController::class, 'mixedTypePrimary']);
+
+    $response = createdResponse('/conventional/mixed-type', 'get');
 
     expect($response)->not->toBeNull()
         ->and($response['headers'] ?? [])->toHaveKey('Location');

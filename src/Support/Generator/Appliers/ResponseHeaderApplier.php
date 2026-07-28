@@ -142,16 +142,40 @@ final readonly class ResponseHeaderApplier
                 return true;
             }
 
-            if (!is_defined($schema->type) || !is_string($schema->type)) {
-                return true;
-            }
-
-            if (!in_array($schema->type, self::SCALAR_SCHEMA_TYPES, strict: true)) {
+            if (!is_defined($schema->type) || !$this->isScalarType($schema->type)) {
                 return true;
             }
         }
 
         return false;
+    }
+
+    /**
+     * Whether a schema type is scalar, in either form OAS 3.1 permits.
+     *
+     * A nullable scalar is spelled as a type array (`['string', 'null']`), which is what a
+     * `?string` return produces, so an array counts as scalar when every member other than `null`
+     * is. One non-scalar member (`['object', 'null']`, `['string', 'object']`) makes the body
+     * addressable again. Mirrors the all-members-scalar rule in {@see NullableSchema}.
+     */
+    private function isScalarType(mixed $type): bool
+    {
+        if (is_string($type)) {
+            return in_array($type, self::SCALAR_SCHEMA_TYPES, strict: true);
+        }
+
+        if (!is_array($type)) {
+            return false;
+        }
+
+        $declared = array_filter($type, static fn(mixed $member): bool => $member !== 'null');
+
+        // A type of `null` alone states no scalar; an empty all-quantifier must not pass for one.
+        return $declared !== [] && array_all(
+            $declared,
+            static fn(mixed $member): bool
+                => in_array($member, self::SCALAR_SCHEMA_TYPES, strict: true),
+        );
     }
 
     private function buildResponseHeader(ResponseHeaderAttribute $header): OA\Header
