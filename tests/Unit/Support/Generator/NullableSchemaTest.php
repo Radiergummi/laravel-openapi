@@ -240,6 +240,11 @@ dataset('nullability cases', [
     'scalar type' => [fn() => new OA\Schema(['type' => 'string'])],
     'all-scalar type array' => [fn() => new OA\Schema(['type' => ['string', 'number']])],
     'mixed type array' => [fn() => new OA\Schema(['type' => ['string', 'object']])],
+    'empty type array' => [fn() => new OA\Schema(['type' => []])],
+    'empty type array beside a constraint' => [fn() => new OA\Schema([
+        'type' => [],
+        'minLength' => 3,
+    ])],
     'type array already nullable' => [fn() => new OA\Schema(['type' => ['object', 'null']])],
     'structured type' => [fn() => new OA\Schema([
         'type' => 'object',
@@ -327,6 +332,90 @@ it('wraps a typeless schema that does carry a constraint', function (): void {
     expect($target->enum)
         ->toBe(Generator::UNDEFINED)
         ->and($target->oneOf[0]->enum)->toBe(['a', 'b'])
+        ->and($target->oneOf[1]->type)->toBe('null');
+});
+
+// endregion
+
+// region Empty type array: neither widened nor split, both of which yield a null-only schema
+
+it('leaves a schema whose type is an empty array untouched', function (): void {
+    $target = new OA\Schema(['type' => []]);
+    NullableSchema::applyTo($target);
+
+    // Widening would write type: ['null'], and splitting would produce
+    // oneOf: [{type: []}, {type: 'null'}] whose first branch matches nothing: both leave a schema
+    // that validates null and rejects every other value.
+    expect($target->type)
+        ->toBe([])
+        ->and($target->oneOf)->toBe(Generator::UNDEFINED);
+});
+
+it('leaves an empty type array untouched through wrap() as well', function (): void {
+    $schema = new OA\Schema(['type' => []]);
+    $result = NullableSchema::wrap($schema);
+
+    expect($result->type)
+        ->toBe([])
+        ->and($result->oneOf)->toBe(Generator::UNDEFINED)
+        ->and($schema->type)->toBe([]);
+});
+
+it('keeps documentation on a schema whose type is an empty array', function (): void {
+    $target = new OA\Schema(['type' => [], 'description' => 'Anything at all.']);
+    NullableSchema::applyTo($target);
+
+    expect($target->type)
+        ->toBe([])
+        ->and($target->oneOf)->toBe(Generator::UNDEFINED)
+        ->and($target->description)->toBe('Anything at all.');
+});
+
+it('still splits when an empty type array accompanies a real constraint', function (): void {
+    $target = new OA\Schema(['type' => [], 'minLength' => 3]);
+    NullableSchema::applyTo($target);
+
+    // The empty type array justifies no wrapper of its own, but it must not suppress one either.
+    expect($target->minLength)
+        ->toBe(Generator::UNDEFINED)
+        ->and($target->type)->toBe([])
+        ->and($target->oneOf)->toHaveCount(2)
+        ->and($target->oneOf[0]->minLength)->toBe(3)
+        ->and($target->oneOf[1]->type)->toBe('null');
+});
+
+// endregion
+
+// region Type-array boundaries either side of the widening predicate
+
+it('widens a single-member scalar type array', function (): void {
+    $target = new OA\Schema(['type' => ['string']]);
+    NullableSchema::applyTo($target);
+
+    expect($target->type)
+        ->toBe(['string', 'null'])
+        ->and($target->oneOf)->toBe(Generator::UNDEFINED);
+});
+
+it('splits a type array mixing a scalar with a structured type', function (): void {
+    $target = new OA\Schema(['type' => ['string', 'object']]);
+    NullableSchema::applyTo($target);
+
+    expect($target->type)
+        ->toBe(Generator::UNDEFINED)
+        ->and($target->oneOf)->toHaveCount(2)
+        ->and($target->oneOf[0]->type)->toBe(['string', 'object'])
+        ->and($target->oneOf[1]->type)->toBe('null');
+});
+
+it('splits a non-scalar plain type rather than widening it', function (): void {
+    $target = new OA\Schema(['type' => 'object', 'minProperties' => 1]);
+    NullableSchema::applyTo($target);
+
+    expect($target->type)
+        ->toBe(Generator::UNDEFINED)
+        ->and($target->oneOf[0]->type)->toBe('object')
+        ->and($target->oneOf[0]->minProperties)->toBe(1)
         ->and($target->oneOf[1]->type)->toBe('null');
 });
 

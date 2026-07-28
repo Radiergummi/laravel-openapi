@@ -28,6 +28,8 @@ use function Radiergummi\OpenApi\is_undefined;
  *   check requires.
  * - A schema carrying no constraints at all is left untouched: it already permits null, and a
  *   `oneOf` would in fact forbid it, since null matches both branches and exactly-one then fails.
+ *   An empty `type` array counts as no constraint, so it is left in place rather than widened to
+ *   `type: ['null']` or moved into a wrapper.
  * - A schema that already permits null (a `'null'` type, or a `oneOf`/`anyOf` branch typed `null`)
  *   is likewise left untouched, so applying the rule twice is the same as applying it once.
  *
@@ -139,8 +141,8 @@ final class NullableSchema
     /**
      * Widens a `type` consisting of nothing but scalars to include `'null'`, in place.
      *
-     * Returns false when the type is structured, mixed, or absent, meaning the schema needs the
-     * `oneOf` split instead.
+     * Returns false when the type is structured, mixed, empty, or absent, meaning the schema needs
+     * the `oneOf` split instead.
      */
     private static function widenType(OA\Schema $target): bool
     {
@@ -156,7 +158,7 @@ final class NullableSchema
             return true;
         }
 
-        if (!is_defined($type) || !is_array($type)) {
+        if (!is_defined($type) || !is_array($type) || $type === []) {
             return false;
         }
 
@@ -169,6 +171,18 @@ final class NullableSchema
         $target->type = [...$type, 'null'];
 
         return true;
+    }
+
+    /**
+     * Reports whether a field is a `type` carrying an empty array, which constrains nothing.
+     *
+     * Such a type is neither widenable (appending `'null'` would leave `type: ['null']`, admitting
+     * only null) nor worth splitting on: it serialises away, so the wrapper would come out as
+     * `oneOf: [{}, {type: 'null'}]`, which rejects null instead.
+     */
+    private static function isEmptyTypeArray(string $field, mixed $value): bool
+    {
+        return $field === 'type' && $value === [];
     }
 
     /**
@@ -186,6 +200,7 @@ final class NullableSchema
         foreach (get_object_vars($target) as $field => $value) {
             if (
                 !is_schema_field($field, $value)
+                || self::isEmptyTypeArray($field, $value)
                 || in_array($field, self::DOCUMENTATION_KEYWORDS, strict: true)
                 || in_array($field, self::ANNOTATION_CARRIERS, strict: true)
             ) {
