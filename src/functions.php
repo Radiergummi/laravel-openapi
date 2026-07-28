@@ -50,6 +50,22 @@ function class_resource_name(string $class): string
 }
 
 /**
+ * Whether a {@see Schema} member holds a JSON-Schema field that may be moved between schemas:
+ * not a swagger-php internal (underscore-prefixed), not a component-key field (`property`,
+ * `schema`), and actually set.
+ *
+ * Callers that need a wider skip set add their own conditions on top; this is the floor.
+ *
+ * @internal
+ */
+function is_schema_field(string $field, mixed $value): bool
+{
+    return $field[0] !== '_'
+        && is_defined($value)
+        && !in_array($field, ['property', 'schema'], strict: true);
+}
+
+/**
  * Copies defined JSON-Schema fields from one {@see Schema} onto another, skipping swagger-php
  * internals (underscore-prefixed), component-key fields (`property`, `schema`), and undefined values.
  * Used to re-home a resolved schema as a named property or array item.
@@ -65,11 +81,7 @@ function class_resource_name(string $class): string
 function copy_schema_fields(Schema $source, Schema $target): Schema
 {
     foreach (get_object_vars($source) as $field => $value) {
-        if (
-            $field[0] === '_'
-            || is_undefined($value)
-            || in_array($field, ['property', 'schema'], strict: true)
-        ) {
+        if (!is_schema_field($field, $value)) {
             continue;
         }
 

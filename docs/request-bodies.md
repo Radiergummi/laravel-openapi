@@ -343,12 +343,26 @@ constraints:
 | `date_format` with date+time tokens | `format: date-time` |
 | `file` / `image` (string rule) | `type: string, format: binary` + switches body to multipart |
 | `digits:N` | `pattern: '^\d{N}$'` |
-| `nullable` | `nullable: true` |
+| `nullable` | OAS 3.1 nullability (see below) — never the 3.0 `nullable: true` keyword |
 | `Password::min(N)` | `type: string, format: password, minLength: N` |
 | `Password::…->letters()->numbers()` | `description` listing active character-class requirements |
 | `File::types([…])` | `type: string, format: binary`; `description` with allowed types and size bounds |
 | `File::image()` / `ImageFile` | same as `File` plus image dimensions in `description` when `.dimensions(…)` is chained |
 | `Dimensions` (standalone) | `type: string, format: binary`; `description` with all dimension constraints |
+
+### The `nullable` rule
+
+OpenAPI 3.1 dropped the `nullable` keyword, so a `nullable` rule never emits it.
+What it produces depends on what the field's other rules established: a scalar
+type widens (`'name' => ['nullable', 'string']` → `type: [string, 'null']`),
+anything else carrying constraints splits into a `oneOf` (`['nullable',
+'min:1']` → `oneOf: [{minLength: 1}, {type: 'null'}]`), and a bare
+`['nullable']` produces an empty schema, which already accepts null.
+
+The rule is not specific to validation rules; it shapes nullable schemas
+throughout the document. It is stated in full — including where documentation
+keywords land when a schema splits — under
+[Auto-derivation → Nullable schemas](auto-derivation.md#nullable-schemas).
 
 ### PATCH semantics
 

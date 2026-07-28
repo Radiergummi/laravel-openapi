@@ -135,14 +135,82 @@ disambiguation / `#[SchemaName]` rules).
 
 Every Tier-0 site that resolves a backed enum participates: an Eloquent `$casts`
 entry, a Spatie `Data` property, a typed path/query parameter, and a
-`Rule::enum(Status::class)` validation rule. A nullable enum is wrapped as
-`oneOf: [{$ref}, {type: 'null'}]` (OAS 3.1), since keywords alongside a `$ref`
-are ignored.
+`Rule::enum(Status::class)` validation rule. A nullable enum becomes
+`oneOf: [{$ref}, {type: 'null'}]` rather than a widened type, since keywords
+alongside a `$ref` are ignored in OpenAPI 3.1; a `description` on the reference
+stays on the outer schema. See [Nullable schemas](#nullable-schemas).
 
 The validation-rule form references the component only when it constrains the
 field to the enum's **full** case set. A `->only(...)` / `->except(...)` subset,
 or a unit (non-backed) enum, is not the canonical component, so it keeps an
 inline value list instead.
+
+## Nullable schemas
+
+OpenAPI 3.1 removed the `nullable` keyword: nullability is part of a schema's
+type, not a flag beside it. One rule shapes the nullable schemas that come from
+a `?Dto` return type, a nullable Spatie `Data` property, an Eloquent `?T`
+`@property` tag, an API-resource field, a path or query parameter, a `nullable`
+validation rule, and an explicit `nullable: true` on a field attribute:
+
+| The schema being made nullable | Result |
+|---|---|
+| a scalar `type` (`string`, `integer`, `number`, `boolean`), or a type array of nothing but scalars | the type widens to include `'null'` — `type: [string, 'null']` |
+| anything else carrying constraints: a structured type (`object` / `array`), a mixed type array, a `$ref`, a composed schema, or constraints with no type at all | it splits — `oneOf: [<the constraints>, {type: 'null'}]` |
+| a schema carrying no constraints at all | unchanged: an empty schema already permits null |
+| a schema that already permits null | unchanged |
+
+### Documentation keywords stay outside the `oneOf`
+
+When a schema splits, its **constraint** keywords move into the first `oneOf`
+branch: `type`, `format`, `pattern`, `enum`, `const`, `items`, `properties`,
+`required`, `additionalProperties`, the numeric and length bounds, `$ref`, and
+the composition keywords. Its **documentation** keywords stay on the outer
+schema — `title`, `description`, `example`, `examples`, `default`,
+`deprecated`, `readOnly`, `writeOnly`, `externalDocs`, `xml`, and `x-*`
+extensions — because they describe the field, not its non-null alternative:
+
+```yaml
+avatar:
+  description: The user's profile picture.    # describes the field
+  oneOf:
+    - type: object
+      properties:
+        url:   { type: string, format: uri }
+        width: { type: integer }
+      required: [url]
+    - type: 'null'
+```
+
+The split is derived from the schema object rather than a hand-kept list, so
+every constraint lands inside the wrapper; none is stranded on the outer node,
+where it would apply to the null alternative too.
+
+### Nullable without a type
+
+A field can be nullable with nothing establishing its type — `['nullable',
+'min:1']` in a `FormRequest`, or a `#[ResponseField(nullable: true)]` carrying
+only a length bound. The constraints split the same way, and the result stays
+honest about the type it does not know:
+
+```yaml
+bio:
+  oneOf:
+    - { minLength: 1 }
+    - { type: 'null' }
+```
+
+Nullable with no constraints at all (`'bio' => ['nullable']`) produces an empty
+schema, which already accepts null. Wrapping it would be worse than nothing:
+both branches would match null, and `oneOf` demands exactly one.
+
+### Applying nullability twice
+
+Making a schema nullable that already permits null is a no-op. A `type`
+containing `'null'`, or a `oneOf` / `anyOf` that already carries a
+`{type: 'null'}` branch, is left as it is — so a redundant `nullable: true` on
+a property whose PHP type is already `?Foo` documents one level of `oneOf`,
+not two nested ones.
 
 ## Typed return response schemas
 
@@ -166,8 +234,8 @@ package:
   directly.
 
 A property is `required` unless its type is nullable. Nullability and unions on
-the return itself are honoured (`?Dto` wraps the schema in the OpenAPI 3.1
-nullable idiom; `Foo|Bar` becomes `oneOf`).
+the return itself are honoured (`?Dto` takes the OpenAPI 3.1 nullable shape, see
+[Nullable schemas](#nullable-schemas); `Foo|Bar` becomes `oneOf`).
 
 Nothing is invented. A return that cannot be typed without guessing degrades to a
 bare `200 OK` with no body: an untyped / `mixed` / `void` return, a service object
@@ -322,7 +390,10 @@ Article:
     reading_time: { type: integer }            # from typed legacy accessor
 ```
 
-`password` is absent because it is in `$hidden`.
+`password` is absent because it is in `$hidden`. `bio` and `updated_at` show the
+scalar form of the nullable rule; a nullable relation (`@property-read ?Category
+$category`) takes the `oneOf` form instead, since keywords alongside a `$ref`
+are ignored (see [Nullable schemas](#nullable-schemas)).
 
 ### Examples from model factories
 

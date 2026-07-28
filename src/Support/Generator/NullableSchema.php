@@ -7,19 +7,29 @@ namespace Radiergummi\OpenApi\Support\Generator;
 use OpenApi\Annotations as OA;
 use OpenApi\Generator;
 
+use function get_object_vars;
 use function in_array;
 use function is_array;
 use function is_string;
 use function Radiergummi\OpenApi\is_defined;
+use function Radiergummi\OpenApi\is_schema_field;
 use function Radiergummi\OpenApi\is_undefined;
 
 /**
- * OAS 3.1-compatible nullable schema wrapping (OAS 3.1 removed `nullable`).
+ * OAS 3.1-compatible nullable schema wrapping (OAS 3.1 removed `nullable`), and the single owner
+ * of that rule: {@see wrap()} is {@see applyTo()} on a copy, so the two cannot drift apart.
  *
- * - Scalar type (`string`/`integer`/`number`/`boolean`): widened to a type array including `'null'`.
- * - Structured type (`array`/`object`) or `$ref`: wrapped in `oneOf: [<inner>, {type: 'null'}]`
- *   so that swagger-php's `OA\Items` parent check (requires `type === 'array'` as a string) passes.
- * - All other cases (no type, already composed): wrapped in `oneOf`.
+ * - Scalar type (`string`/`integer`/`number`/`boolean`), or a type array of nothing but scalars:
+ *   widened to a type array including `'null'`.
+ * - Anything else that carries constraints (structured type, mixed type array, `$ref`, composed
+ *   schema): split into `oneOf: [<inner>, {type: 'null'}]`, with the constraint keywords moved to
+ *   the inner schema and the documentation keywords left on the outer node. Splitting rather than
+ *   widening also keeps `type: 'array'` a plain string, which swagger-php's `OA\Items` parent
+ *   check requires.
+ * - A schema carrying no constraints at all is left untouched: it already permits null, and a
+ *   `oneOf` would in fact forbid it, since null matches both branches and exactly-one then fails.
+ * - A schema that already permits null (a `'null'` type, or a `oneOf`/`anyOf` branch typed `null`)
+ *   is likewise left untouched, so applying the rule twice is the same as applying it once.
  *
  * @internal
  */
@@ -27,6 +37,32 @@ final class NullableSchema
 {
     /** Scalar OAS types that can be safely widened to a type array. */
     private const array SCALAR_TYPES = ['string', 'integer', 'number', 'boolean'];
+
+    /**
+     * Keywords that document the field as a whole rather than constrain its value. They stay on
+     * the outer node when a schema is split: nested inside the `oneOf`, each would describe only
+     * the non-null branch.
+     */
+    private const array DOCUMENTATION_KEYWORDS = [
+        'default',
+        'deprecated',
+        'description',
+        'example',
+        'examples',
+        'externalDocs',
+        'nullable',
+        'readOnly',
+        'title',
+        'writeOnly',
+        'x',
+        'xml',
+    ];
+
+    /**
+     * swagger-php carriers for annotations attached to the schema. Not JSON-Schema keywords, and
+     * not underscore-prefixed like the library's other internals, so they need naming explicitly.
+     */
+    private const array ANNOTATION_CARRIERS = ['attachables', 'encoding'];
 
     /** @codeCoverageIgnore */
     private function __construct() {}
@@ -36,58 +72,11 @@ final class NullableSchema
      */
     public static function wrap(OA\Schema $schema): OA\Schema
     {
-        // Extra keywords alongside $ref are ignored in OAS 3.1; must use oneOf.
-        if (is_defined($schema->ref) && is_string($schema->ref)) {
-            return new OA\Schema([
-                'oneOf' => [
-                    new OA\Schema(['ref' => $schema->ref]),
-                    new OA\Schema(['type' => 'null']),
-                ],
-            ]);
-        }
+        $copy = clone $schema;
 
-        // Scalar type: widen to include 'null'.
-        if (
-            is_defined($schema->type)
-            && is_string($schema->type)
-            && in_array($schema->type, self::SCALAR_TYPES, strict: true)
-        ) {
-            $clone = clone $schema;
-            $clone->type = [$schema->type, 'null'];
+        self::applyTo($copy);
 
-            return $clone;
-        }
-
-        // Already a type array: append 'null' if absent (only safe when all-scalar).
-        if (is_defined($schema->type) && is_array($schema->type)) {
-            $hasStructured = false;
-
-            foreach ($schema->type as $type) {
-                if ($type !== 'null' && !in_array($type, self::SCALAR_TYPES, strict: true)) {
-                    $hasStructured = true;
-
-                    break;
-                }
-            }
-
-            if (!$hasStructured) {
-                $clone = clone $schema;
-
-                if (!in_array('null', $schema->type, strict: true)) {
-                    $clone->type = [...$schema->type, 'null'];
-                }
-
-                return $clone;
-            }
-        }
-
-        // Structured/untyped: wrap in oneOf to keep type: 'array' as a string (OA\Items check).
-        return new OA\Schema([
-            'oneOf' => [
-                $schema,
-                new OA\Schema(['type' => 'null']),
-            ],
-        ]);
+        return $copy;
     }
 
     /**
@@ -97,119 +86,125 @@ final class NullableSchema
      */
     public static function applyTo(OA\Schema $target): void
     {
-        // Extra keywords alongside $ref are ignored in OAS 3.1; must use oneOf.
-        if (is_defined($target->ref) && is_string($target->ref)) {
-            $target->oneOf = [
-                new OA\Schema(['ref' => $target->ref]),
-                new OA\Schema(['type' => 'null']),
-            ];
-            $target->ref = Generator::UNDEFINED;
-
+        // Applying the rule twice would nest the wrapper, and null then matches both outer
+        // branches: `oneOf` demands exactly one, so the schema would accept nothing at all.
+        if (self::isAlreadyNullable($target)) {
             return;
         }
 
-        if (is_string($target->type) && is_defined($target->type)) {
-            if (in_array($target->type, ['array', 'object'], strict: true)) {
-                $inner = new OA\Schema(['type' => $target->type]);
-
-                if (is_defined($target->items)) {
-                    $inner->items = $target->items;
-                    $target->items = Generator::UNDEFINED; // @phpstan-ignore assign.propertyType (clearing the property; swagger-php uses the UNDEFINED sentinel string here)
-                }
-
-                if (is_defined($target->properties)) {
-                    $inner->properties = $target->properties;
-                    $target->properties = Generator::UNDEFINED; // @phpstan-ignore assign.propertyType (clearing the property; swagger-php uses the UNDEFINED sentinel string here)
-                }
-
-                if (is_defined($target->additionalProperties)) {
-                    $inner->additionalProperties = $target->additionalProperties;
-                    $target->additionalProperties = Generator::UNDEFINED; // @phpstan-ignore assign.propertyType (clearing the property; swagger-php uses the UNDEFINED sentinel string here)
-                }
-
-                if (is_defined($target->required)) {
-                    $inner->required = $target->required;
-                    $target->required = Generator::UNDEFINED; // @phpstan-ignore assign.propertyType (clearing the property; swagger-php uses the UNDEFINED sentinel string here)
-                }
-
-                // Validation constraints strand on a typeless outer schema; move them inside.
-                if (is_defined($target->minItems)) {
-                    $inner->minItems = $target->minItems;
-                    $target->minItems = Generator::UNDEFINED; // @phpstan-ignore assign.propertyType (clearing the property; swagger-php uses the UNDEFINED sentinel string here)
-                }
-
-                if (is_defined($target->maxItems)) {
-                    $inner->maxItems = $target->maxItems;
-                    $target->maxItems = Generator::UNDEFINED; // @phpstan-ignore assign.propertyType (clearing the property; swagger-php uses the UNDEFINED sentinel string here)
-                }
-
-                if (is_defined($target->uniqueItems)) {
-                    $inner->uniqueItems = $target->uniqueItems;
-                    $target->uniqueItems = Generator::UNDEFINED; // @phpstan-ignore assign.propertyType (clearing the property; swagger-php uses the UNDEFINED sentinel string here)
-                }
-
-                if (is_defined($target->minimum)) {
-                    $inner->minimum = $target->minimum;
-                    $target->minimum = Generator::UNDEFINED; // @phpstan-ignore assign.propertyType (clearing the property; swagger-php uses the UNDEFINED sentinel string here)
-                }
-
-                if (is_defined($target->maximum)) {
-                    $inner->maximum = $target->maximum;
-                    $target->maximum = Generator::UNDEFINED; // @phpstan-ignore assign.propertyType (clearing the property; swagger-php uses the UNDEFINED sentinel string here)
-                }
-
-                if (is_defined($target->exclusiveMinimum)) {
-                    $inner->exclusiveMinimum = $target->exclusiveMinimum;
-                    $target->exclusiveMinimum = Generator::UNDEFINED; // @phpstan-ignore assign.propertyType (clearing the property; swagger-php uses the UNDEFINED sentinel string here)
-                }
-
-                if (is_defined($target->exclusiveMaximum)) {
-                    $inner->exclusiveMaximum = $target->exclusiveMaximum;
-                    $target->exclusiveMaximum = Generator::UNDEFINED; // @phpstan-ignore assign.propertyType (clearing the property; swagger-php uses the UNDEFINED sentinel string here)
-                }
-
-                if (is_defined($target->minLength)) {
-                    $inner->minLength = $target->minLength;
-                    $target->minLength = Generator::UNDEFINED; // @phpstan-ignore assign.propertyType (clearing the property; swagger-php uses the UNDEFINED sentinel string here)
-                }
-
-                if (is_defined($target->maxLength)) {
-                    $inner->maxLength = $target->maxLength;
-                    $target->maxLength = Generator::UNDEFINED; // @phpstan-ignore assign.propertyType (clearing the property; swagger-php uses the UNDEFINED sentinel string here)
-                }
-
-                if (is_defined($target->multipleOf)) {
-                    $inner->multipleOf = $target->multipleOf;
-                    $target->multipleOf = Generator::UNDEFINED; // @phpstan-ignore assign.propertyType (clearing the property; swagger-php uses the UNDEFINED sentinel string here)
-                }
-
-                if (is_defined($target->pattern)) {
-                    $inner->pattern = $target->pattern;
-                    $target->pattern = Generator::UNDEFINED;
-                }
-
-                if (is_defined($target->format)) {
-                    $inner->format = $target->format;
-                    $target->format = Generator::UNDEFINED;
-                }
-
-                if (is_defined($target->enum)) {
-                    $inner->enum = $target->enum;
-                    $target->enum = Generator::UNDEFINED; // @phpstan-ignore assign.propertyType (clearing the property; swagger-php uses the UNDEFINED sentinel string here)
-                }
-
-                $target->type = Generator::UNDEFINED;
-                $target->oneOf = [
-                    $inner,
-                    new OA\Schema(['type' => 'null']),
-                ];
-            } else {
-                $target->type = [$target->type, 'null'];
-            }
-        } elseif (is_array($target->type) && !in_array('null', $target->type, strict: true)) {
-            $target->type = [...$target->type, 'null'];
-        } elseif (is_undefined($target->type)) {
-            $target->type = ['null'];
+        // Keywords alongside a $ref are ignored in OAS 3.1, so a ref is always split, never widened.
+        if (is_undefined($target->ref) && self::widenType($target)) {
+            return;
         }
+
+        self::split($target);
+    }
+
+    /**
+     * Reports whether the schema already permits null, in either form the rule produces.
+     */
+    private static function isAlreadyNullable(OA\Schema $target): bool
+    {
+        if (self::isNullType($target->type)) {
+            return true;
+        }
+
+        foreach ([$target->oneOf, $target->anyOf] as $branches) {
+            if (!is_defined($branches) || !is_array($branches)) {
+                continue;
+            }
+
+            foreach ($branches as $branch) {
+                if ($branch instanceof OA\Schema && self::isNullType($branch->type)) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Reports whether a `type` member admits null, as either the bare type or a type array member.
+     */
+    private static function isNullType(mixed $type): bool
+    {
+        if (!is_defined($type)) {
+            return false;
+        }
+
+        return $type === 'null' || (is_array($type) && in_array('null', $type, strict: true));
+    }
+
+    /**
+     * Widens a `type` consisting of nothing but scalars to include `'null'`, in place.
+     *
+     * Returns false when the type is structured, mixed, or absent, meaning the schema needs the
+     * `oneOf` split instead.
+     */
+    private static function widenType(OA\Schema $target): bool
+    {
+        $type = $target->type;
+
+        if (is_defined($type) && is_string($type)) {
+            if (!in_array($type, self::SCALAR_TYPES, strict: true)) {
+                return false;
+            }
+
+            $target->type = [$type, 'null'];
+
+            return true;
+        }
+
+        if (!is_defined($type) || !is_array($type)) {
+            return false;
+        }
+
+        foreach ($type as $member) {
+            if (!in_array($member, self::SCALAR_TYPES, strict: true)) {
+                return false;
+            }
+        }
+
+        $target->type = [...$type, 'null'];
+
+        return true;
+    }
+
+    /**
+     * Moves every constraint keyword off `$target` into a fresh inner schema, then replaces them
+     * with `oneOf: [<inner>, {type: 'null'}]`.
+     *
+     * The keyword set is derived from the annotation object itself rather than enumerated, so a
+     * keyword added upstream lands inside the wrapper without anyone maintaining a list.
+     */
+    private static function split(OA\Schema $target): void
+    {
+        $inner = new OA\Schema([]);
+        $moved = false;
+
+        foreach (get_object_vars($target) as $field => $value) {
+            if (
+                !is_schema_field($field, $value)
+                || in_array($field, self::DOCUMENTATION_KEYWORDS, strict: true)
+                || in_array($field, self::ANNOTATION_CARRIERS, strict: true)
+            ) {
+                continue;
+            }
+
+            $inner->{$field} = $value;
+            $target->{$field} = Generator::UNDEFINED;
+            $moved = true;
+        }
+
+        // An unconstrained schema already permits null; wrapping it would reject null instead.
+        if (!$moved) {
+            return;
+        }
+
+        $target->oneOf = [
+            $inner,
+            new OA\Schema(['type' => 'null']),
+        ];
     }
 }

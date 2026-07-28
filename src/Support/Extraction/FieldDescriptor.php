@@ -8,9 +8,6 @@ use OpenApi\Annotations as OA;
 use OpenApi\Generator;
 use Radiergummi\OpenApi\Support\Generator\NullableSchema;
 
-use function in_array;
-use function is_array;
-use function is_string;
 use function Radiergummi\OpenApi\is_defined;
 use function Radiergummi\OpenApi\is_undefined;
 
@@ -110,6 +107,8 @@ final class FieldDescriptor
         // because OAS 3.1 ignores keywords alongside a $ref.
         if ($this->ref !== null && ($overwrite || is_undefined($target->ref))) {
             if ($this->nullable) {
+                // Indexing the result is safe only because a bare $ref always splits: wrap()
+                // leaves oneOf undefined for schemas it finds nothing to move out of.
                 $target->oneOf = NullableSchema::wrap(new OA\Schema(['ref' => $this->ref]))->oneOf;
             } else {
                 $target->ref = $this->ref;
@@ -222,97 +221,9 @@ final class FieldDescriptor
             }
         }
 
-        // OAS 3.1 nullability: scalars widen type to ['string', 'null']; structured types (array/object)
-        // need a oneOf wrapper because swagger-php requires type === 'array' (exact string) when items
-        // is present. Skip when already composed (nullable wrapping was applied upstream).
+        // Skip when already composed: nullable wrapping was applied upstream.
         if ($this->nullable && !$alreadyComposed) {
-            if (is_string($target->type) && is_defined($target->type)) {
-                if (in_array($target->type, ['array', 'object'], strict: true)) {
-                    $inner = new OA\Schema(['type' => $target->type]);
-
-                    if (is_defined($target->items)) {
-                        $inner->items = $target->items;
-                        $target->items = Generator::UNDEFINED; // @phpstan-ignore assign.propertyType (clearing the property; swagger-php uses the UNDEFINED sentinel string here)
-                    }
-
-                    if (is_defined($target->properties)) {
-                        $inner->properties = $target->properties;
-                        $target->properties = Generator::UNDEFINED; // @phpstan-ignore assign.propertyType (clearing the property; swagger-php uses the UNDEFINED sentinel string here)
-                    }
-
-                    if (is_defined($target->additionalProperties)) {
-                        $inner->additionalProperties = $target->additionalProperties;
-                        $target->additionalProperties = Generator::UNDEFINED; // @phpstan-ignore assign.propertyType (clearing the property; swagger-php uses the UNDEFINED sentinel string here)
-                    }
-
-                    if (is_defined($target->required)) {
-                        $inner->required = $target->required;
-                        $target->required = Generator::UNDEFINED; // @phpstan-ignore assign.propertyType (clearing the property; swagger-php uses the UNDEFINED sentinel string here)
-                    }
-
-                    if (is_defined($target->minItems)) {
-                        $inner->minItems = $target->minItems;
-                        $target->minItems = Generator::UNDEFINED; // @phpstan-ignore assign.propertyType (clearing the property; swagger-php uses the UNDEFINED sentinel string here)
-                    }
-
-                    if (is_defined($target->maxItems)) {
-                        $inner->maxItems = $target->maxItems;
-                        $target->maxItems = Generator::UNDEFINED; // @phpstan-ignore assign.propertyType (clearing the property; swagger-php uses the UNDEFINED sentinel string here)
-                    }
-
-                    if (is_defined($target->minimum)) {
-                        $inner->minimum = $target->minimum;
-                        $target->minimum = Generator::UNDEFINED; // @phpstan-ignore assign.propertyType (clearing the property; swagger-php uses the UNDEFINED sentinel string here)
-                    }
-
-                    if (is_defined($target->maximum)) {
-                        $inner->maximum = $target->maximum;
-                        $target->maximum = Generator::UNDEFINED; // @phpstan-ignore assign.propertyType (clearing the property; swagger-php uses the UNDEFINED sentinel string here)
-                    }
-
-                    if (is_defined($target->minLength)) {
-                        $inner->minLength = $target->minLength;
-                        $target->minLength = Generator::UNDEFINED; // @phpstan-ignore assign.propertyType (clearing the property; swagger-php uses the UNDEFINED sentinel string here)
-                    }
-
-                    if (is_defined($target->maxLength)) {
-                        $inner->maxLength = $target->maxLength;
-                        $target->maxLength = Generator::UNDEFINED; // @phpstan-ignore assign.propertyType (clearing the property; swagger-php uses the UNDEFINED sentinel string here)
-                    }
-
-                    if (is_defined($target->multipleOf)) {
-                        $inner->multipleOf = $target->multipleOf;
-                        $target->multipleOf = Generator::UNDEFINED; // @phpstan-ignore assign.propertyType (clearing the property; swagger-php uses the UNDEFINED sentinel string here)
-                    }
-
-                    if (is_defined($target->pattern)) {
-                        $inner->pattern = $target->pattern;
-                        $target->pattern = Generator::UNDEFINED;
-                    }
-
-                    if (is_defined($target->format)) {
-                        $inner->format = $target->format;
-                        $target->format = Generator::UNDEFINED;
-                    }
-
-                    if (is_defined($target->enum)) {
-                        $inner->enum = $target->enum;
-                        $target->enum = Generator::UNDEFINED; // @phpstan-ignore assign.propertyType (clearing the property; swagger-php uses the UNDEFINED sentinel string here)
-                    }
-
-                    $target->type = Generator::UNDEFINED;
-                    $target->oneOf = [
-                        $inner,
-                        new OA\Schema(['type' => 'null']),
-                    ];
-                } else {
-                    $target->type = [$target->type, 'null'];
-                }
-            } elseif (is_array($target->type) && !in_array('null', $target->type, strict: true)) {
-                $target->type = [...$target->type, 'null'];
-            } elseif (is_undefined($target->type)) {
-                $target->type = ['null'];
-            }
+            NullableSchema::applyTo($target);
         }
     }
 }

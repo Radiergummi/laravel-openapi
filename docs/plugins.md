@@ -45,7 +45,8 @@ class) degrades silently to no schema.
 A return typed as several Data classes (`FooData|BarData`) yields a `oneOf` of
 their `$ref`s (a single member collapses to a bare `$ref`). A nullable Data
 return (`?FooData`, or a union with a `null` member) is modelled nullable via the
-OAS 3.1 `oneOf … {type: null}` idiom.
+OAS 3.1 `oneOf … {type: null}` idiom — the same rule used throughout, see
+[Auto-derivation → Nullable schemas](auto-derivation.md#nullable-schemas).
 
 `spatie/laravel-data` is an optional runtime dependency. The plugin entry
 stays in `config/openapi.plugins` either way; without the package installed

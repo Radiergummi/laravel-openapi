@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use Illuminate\Foundation\Http\FormRequest;
 use OpenApi\Annotations as OA;
+use OpenApi\Generator;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 use Radiergummi\OpenApi\Contracts\Lint\Severity;
@@ -17,6 +18,7 @@ use Radiergummi\OpenApi\Tests\Fixtures\DeeplyChainedFormRequest;
 use Radiergummi\OpenApi\Tests\Fixtures\FileUploadFormRequest;
 use Radiergummi\OpenApi\Tests\Fixtures\RouteBoundFormRequest;
 use Radiergummi\OpenApi\Tests\Fixtures\SimpleFormRequest;
+use Radiergummi\OpenApi\Tests\Fixtures\UntypedNullableFormRequest;
 use Radiergummi\OpenApi\Tests\Fixtures\UserBoundFormRequest;
 
 uses()->group('openapi');
@@ -422,6 +424,41 @@ it('synthesises a type:array parent property for "foo.*" rules without a separat
     expect($attachments->items->type)
         ->toBe('string')
         ->and($attachments->items->maxLength)->toBe(2048);
+});
+
+// endregion
+
+// region Nullable fields whose rules imply no type
+
+it('does not document a nullable field with constraints as being required to be null', function (): void {
+    $this->builder->build(UntypedNullableFormRequest::class);
+
+    $props = formRequestPropertiesByName($this->registry->all()[0]);
+
+    // Widening a typeless schema to type: ['null'] asserted the value *must* be null, and stranded
+    // the constraint on a node the null branch never reached.
+    expect($props['bio']->type)
+        ->toBe(Generator::UNDEFINED)
+        ->and($props['bio']->minLength)->toBe(Generator::UNDEFINED)
+        ->and($props['bio']->oneOf)->toHaveCount(2)
+        ->and($props['bio']->oneOf[0]->minLength)->toBe(1)
+        ->and($props['bio']->oneOf[1]->type)->toBe('null');
+
+    expect($props['slug']->oneOf[0]->pattern)
+        ->toBe('^[a-z]+$')
+        ->and($props['slug']->oneOf[1]->type)->toBe('null');
+});
+
+it('leaves an unconstrained nullable field open rather than pinning it to null', function (): void {
+    $this->builder->build(UntypedNullableFormRequest::class);
+
+    $props = formRequestPropertiesByName($this->registry->all()[0]);
+
+    // A schema with no constraints already permits null; a oneOf would reject it, since null
+    // matches both branches and exactly-one then fails.
+    expect($props['anything']->type)
+        ->toBe(Generator::UNDEFINED)
+        ->and($props['anything']->oneOf)->toBe(Generator::UNDEFINED);
 });
 
 // endregion

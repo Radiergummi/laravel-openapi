@@ -234,3 +234,178 @@ it('wraps a schema with no explicit type in oneOf with a null sibling', function
 });
 
 // endregion
+// region wrap() / applyTo() agreement: the two are one implementation
+
+dataset('nullability cases', [
+    'scalar type' => [fn() => new OA\Schema(['type' => 'string'])],
+    'all-scalar type array' => [fn() => new OA\Schema(['type' => ['string', 'number']])],
+    'mixed type array' => [fn() => new OA\Schema(['type' => ['string', 'object']])],
+    'type array already nullable' => [fn() => new OA\Schema(['type' => ['object', 'null']])],
+    'structured type' => [fn() => new OA\Schema([
+        'type' => 'object',
+        'properties' => [new OA\Property(['property' => 'id', 'type' => 'integer'])],
+        'description' => 'A thing',
+    ])],
+    '$ref' => [fn() => new OA\Schema([
+        'ref' => '#/components/schemas/MyModel',
+        'description' => 'A thing',
+    ])],
+    'undefined type' => [fn() => new OA\Schema(['description' => 'A thing'])],
+    // 'null' is the one OAS type that is neither scalar-widenable nor array/object; the output
+    // itself is pinned by the idempotence tests below, since agreement alone permits nonsense.
+    'null type' => [fn() => new OA\Schema(['type' => 'null'])],
+    'already split into a nullable oneOf' => [fn() => new OA\Schema(['oneOf' => [
+        new OA\Schema(['ref' => '#/components/schemas/MyModel']),
+        new OA\Schema(['type' => 'null']),
+    ]])],
+]);
+
+it('produces the same document from wrap() and applyTo()', function (Closure $build): void {
+    $applied = $build();
+    NullableSchema::applyTo($applied);
+
+    expect(json_encode($applied))->toBe(json_encode(NullableSchema::wrap($build())));
+})->with('nullability cases');
+
+// endregion
+
+// region Documentation keywords stay outside the wrapper
+
+it('keeps the description on the outer node of a nullable $ref', function (): void {
+    $target = new OA\Schema([
+        'ref' => '#/components/schemas/MyModel',
+        'description' => 'The owning account.',
+    ]);
+    NullableSchema::applyTo($target);
+
+    expect($target->description)
+        ->toBe('The owning account.')
+        ->and($target->ref)->toBe(Generator::UNDEFINED)
+        ->and($target->oneOf[0]->ref)->toBe('#/components/schemas/MyModel')
+        ->and($target->oneOf[0]->description)->toBe(Generator::UNDEFINED);
+});
+
+it('keeps the description when wrap() splits a $ref', function (): void {
+    $result = NullableSchema::wrap(new OA\Schema([
+        'ref' => '#/components/schemas/MyModel',
+        'description' => 'The owning account.',
+    ]));
+
+    expect($result->description)
+        ->toBe('The owning account.')
+        ->and($result->oneOf[0]->ref)->toBe('#/components/schemas/MyModel');
+});
+
+it('keeps a default on the outer node rather than scoping it to the non-null branch', function (): void {
+    $target = new OA\Schema(['type' => 'object', 'properties' => [], 'default' => ['a' => 1]]);
+    NullableSchema::applyTo($target);
+
+    expect($target->default)
+        ->toBe(['a' => 1])
+        ->and($target->oneOf[0]->default)->toBe(Generator::UNDEFINED);
+});
+
+// endregion
+
+// region Undefined type: an unconstrained schema already permits null
+
+it('leaves a schema carrying nothing but documentation untouched', function (): void {
+    $target = new OA\Schema(['description' => 'Anything at all.']);
+    NullableSchema::applyTo($target);
+
+    // oneOf: [{}, {type: 'null'}] would reject null: it matches both branches, so exactly-one fails.
+    expect($target->oneOf)
+        ->toBe(Generator::UNDEFINED)
+        ->and($target->type)->toBe(Generator::UNDEFINED)
+        ->and($target->description)->toBe('Anything at all.');
+});
+
+it('wraps a typeless schema that does carry a constraint', function (): void {
+    $target = new OA\Schema(['enum' => ['a', 'b']]);
+    NullableSchema::applyTo($target);
+
+    expect($target->enum)
+        ->toBe(Generator::UNDEFINED)
+        ->and($target->oneOf[0]->enum)->toBe(['a', 'b'])
+        ->and($target->oneOf[1]->type)->toBe('null');
+});
+
+// endregion
+
+// region Idempotence: applying the rule twice must not nest the wrapper
+
+it('leaves a schema already split into a nullable oneOf alone', function (): void {
+    $target = new OA\Schema(['oneOf' => [
+        new OA\Schema(['ref' => '#/components/schemas/MyModel']),
+        new OA\Schema(['type' => 'null']),
+    ]]);
+    NullableSchema::applyTo($target);
+
+    // Nesting the split would make null match both outer branches, so exactly-one fails.
+    expect($target->oneOf)
+        ->toHaveCount(2)
+        ->and($target->oneOf[0]->ref)->toBe('#/components/schemas/MyModel')
+        ->and($target->oneOf[1]->type)->toBe('null');
+});
+
+it('leaves a schema already split into a nullable anyOf alone', function (): void {
+    $target = new OA\Schema(['anyOf' => [
+        new OA\Schema(['type' => 'string']),
+        new OA\Schema(['type' => 'null']),
+    ]]);
+    NullableSchema::applyTo($target);
+
+    expect($target->anyOf)
+        ->toHaveCount(2)
+        ->and($target->oneOf)->toBe(Generator::UNDEFINED);
+});
+
+it('leaves an explicit null type alone rather than splitting it into two null branches', function (): void {
+    $target = new OA\Schema(['type' => 'null']);
+    NullableSchema::applyTo($target);
+
+    expect($target->type)
+        ->toBe('null')
+        ->and($target->oneOf)->toBe(Generator::UNDEFINED);
+});
+
+it('leaves an already-nullable type array alone', function (): void {
+    $target = new OA\Schema(['type' => ['object', 'null']]);
+    NullableSchema::applyTo($target);
+
+    expect($target->type)
+        ->toBe(['object', 'null'])
+        ->and($target->oneOf)->toBe(Generator::UNDEFINED);
+});
+
+it('still splits a composed schema whose branches are not nullable', function (): void {
+    $target = new OA\Schema(['oneOf' => [
+        new OA\Schema(['type' => 'string']),
+        new OA\Schema(['type' => 'integer']),
+    ]]);
+    NullableSchema::applyTo($target);
+
+    expect($target->oneOf)
+        ->toHaveCount(2)
+        ->and($target->oneOf[0]->oneOf)->toHaveCount(2)
+        ->and($target->oneOf[1]->type)->toBe('null');
+});
+
+// endregion
+
+// region No-mutation contract on the branch that rewrites the most
+
+it('does not mutate the input schema for the structured branch', function (): void {
+    $items = new OA\Items(['type' => 'string']);
+    $schema = new OA\Schema(['type' => 'array', 'items' => $items, 'minItems' => 1]);
+
+    NullableSchema::wrap($schema);
+
+    expect($schema->type)
+        ->toBe('array')
+        ->and($schema->items)->toBe($items)
+        ->and($schema->minItems)->toBe(1)
+        ->and($schema->oneOf)->toBe(Generator::UNDEFINED);
+});
+
+// endregion
