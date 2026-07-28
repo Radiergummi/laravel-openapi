@@ -9,10 +9,13 @@ use Radiergummi\OpenApi\Attributes\ResponseHeader as ResponseHeaderAttribute;
 use Radiergummi\OpenApi\Routing\ActionDescriptor;
 use Radiergummi\OpenApi\Support\Routing\RouteMiddlewareGatherer;
 
+use function array_all;
 use function array_any;
 use function array_filter;
+use function in_array;
 use function is_array;
 use function is_string;
+use function Radiergummi\OpenApi\is_defined;
 use function str_starts_with;
 
 /**
@@ -24,6 +27,12 @@ use function str_starts_with;
  */
 final readonly class ResponseHeaderApplier
 {
+    /**
+     * Schema types that cannot describe an addressable resource. Deliberately a local copy: the
+     * equivalent list on `NullableSchema` is private, and no public one exists.
+     */
+    private const array SCALAR_SCHEMA_TYPES = ['string', 'integer', 'number', 'boolean'];
+
     public function __construct(
         private RouteMiddlewareGatherer $middlewareGatherer,
     ) {}
@@ -71,9 +80,9 @@ final readonly class ResponseHeaderApplier
 
     /**
      * Appends headers Laravel always emits for a route, derived from signals the route carries:
-     * `Location` on a 201 (created-resource redirect) and the rate-limit pair under throttle
-     * middleware. Authored {@see ResponseHeaderAttribute} headers run first, so a name already
-     * present on a response wins and the convention skips it.
+     * `Location` on a 201 that addresses a created resource (see {@see addressesCreatedResource()})
+     * and the rate-limit pair under throttle middleware. Authored {@see ResponseHeaderAttribute}
+     * headers run first, so a name already present on a response wins and the convention skips it.
      *
      * Rate-limit headers attach to the primary (success) response only: Laravel decorates a passing
      * response, not the 429, which carries a different header set.
@@ -86,7 +95,10 @@ final readonly class ResponseHeaderApplier
         OA\Response $primaryResponse,
     ): void {
         foreach ($responses as $response) {
-            if ((string) $response->response === '201') {
+            if (
+                (string) $response->response === '201'
+                && $this->addressesCreatedResource($response)
+            ) {
                 $this->appendDerivedHeader($response, 'Location', new OA\Schema([
                     'type' => 'string',
                     'format' => 'uri-reference',
@@ -105,6 +117,66 @@ final readonly class ResponseHeaderApplier
         $this->appendDerivedHeader($primaryResponse, 'X-RateLimit-Remaining', new OA\Schema([
             'type' => 'integer',
         ]), 'The number of requests remaining in the current rate-limit window.');
+    }
+
+    /**
+     * Whether a 201 plausibly addresses a created resource, and so should carry a `Location`.
+     *
+     * Only positive evidence of a scalar body rules it out: a streamed download or a bare scalar
+     * has nothing addressable to link to. Anything else keeps the header, including an object, an
+     * array, a `$ref`, a schema without a readable type, and a response with no content at all.
+     */
+    private function addressesCreatedResource(OA\Response $response): bool
+    {
+        // "Every media type is scalar" is vacuously true over an empty list, which would strip the
+        // header from a content-less 201, the commonest one there is. Unset content is the
+        // UNDEFINED sentinel, itself a non-empty string, so the array check carries the weight.
+        if (!is_array($response->content) || $response->content === []) {
+            return true;
+        }
+
+        foreach ($response->content as $mediaType) {
+            $schema = $mediaType instanceof OA\MediaType ? $mediaType->schema : null;
+
+            // An example-scaffolded media type carries no schema at all, and so no evidence.
+            if (!$schema instanceof OA\Schema) {
+                return true;
+            }
+
+            if (!is_defined($schema->type) || !$this->isScalarType($schema->type)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Whether a schema type is scalar, in either form OAS 3.1 permits.
+     *
+     * A nullable scalar is spelled as a type array (`['string', 'null']`), which is what a
+     * `?string` return produces, so an array counts as scalar when every member other than `null`
+     * is. One non-scalar member (`['object', 'null']`, `['string', 'object']`) makes the body
+     * addressable again. Mirrors the all-members-scalar rule in {@see NullableSchema}.
+     */
+    private function isScalarType(mixed $type): bool
+    {
+        if (is_string($type)) {
+            return in_array($type, self::SCALAR_SCHEMA_TYPES, strict: true);
+        }
+
+        if (!is_array($type)) {
+            return false;
+        }
+
+        $declared = array_filter($type, static fn(mixed $member): bool => $member !== 'null');
+
+        // A type of `null` alone states no scalar; an empty all-quantifier must not pass for one.
+        return $declared !== [] && array_all(
+            $declared,
+            static fn(mixed $member): bool
+                => in_array($member, self::SCALAR_SCHEMA_TYPES, strict: true),
+        );
     }
 
     private function buildResponseHeader(ResponseHeaderAttribute $header): OA\Header
