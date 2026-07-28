@@ -16,6 +16,7 @@ return new class () extends Migration {
             $table->string('tags', 60);
             $table->unsignedInteger('score');
             $table->string('slug', 20)->nullable();
+            $table->unsignedDecimal('rate', 8, 2);
         });
     }
 };

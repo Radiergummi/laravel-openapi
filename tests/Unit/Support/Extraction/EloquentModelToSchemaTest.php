@@ -553,10 +553,18 @@ it('reads maxLength from the migration for an uncast column', function (): void 
 it('lets a cast win over the migration type, enriching only undefined fields', function (): void {
     // decimal:2 cast yields type: string; the decimal(8,2) migration would say number. The cast type
     // survives, and the migration's numeric multipleOf is discarded as inapplicable to a string.
-    $property = modelProperty(buildModelSchema(Widget::class), 'price');
+    // The warning is asserted too: absent multipleOf alone would also hold if none were ever written.
+    $logger = recordingLogger();
+    $property = modelProperty(buildModelSchema(Widget::class, logger: $logger), 'price');
 
     expect($property->type)->toBe('string')
-        ->and(is_undefined($property->multipleOf))->toBeTrue();
+        ->and(is_undefined($property->multipleOf))->toBeTrue()
+        ->and(discardedKeywordWarnings($logger))->toContain([
+            'model' => Widget::class,
+            'property' => 'price',
+            'keyword' => 'multipleOf',
+            'type' => ['string'],
+        ]);
 });
 
 it('relaxes an uncast unsigned column to minimum 0', function (): void {
@@ -698,6 +706,17 @@ it('keeps a keyword the resolved type does apply to', function (): void {
         ->and($property->minimum)->toBe(0);
 });
 
+it('drops every inapplicable keyword on a property, not just the first', function (): void {
+    // An unsignedDecimal head contributes minimum alongside the scale-derived multipleOf, so the
+    // decimal:2 cast's string type leaves both inert; a prune that stopped at the first would keep
+    // multipleOf.
+    $property = modelProperty(buildModelSchema(ConflictedMetadataArticle::class), 'rate');
+
+    expect($property->type)->toBe('string')
+        ->and(is_undefined($property->minimum))->toBeTrue()
+        ->and(is_undefined($property->multipleOf))->toBeTrue();
+});
+
 it('keeps a keyword while one union member belongs to its type class', function (): void {
     $property = modelProperty(buildModelSchema(ConflictedMetadataArticle::class), 'slug');
 
@@ -717,6 +736,8 @@ it('warns for every discarded keyword, naming the model, property and keyword', 
         ['model' => $model, 'property' => 'code', 'keyword' => 'maxLength', 'type' => ['integer']],
         ['model' => $model, 'property' => 'device', 'keyword' => 'pattern', 'type' => ['integer']],
         ['model' => $model, 'property' => 'tags', 'keyword' => 'maxLength', 'type' => ['array']],
+        ['model' => $model, 'property' => 'rate', 'keyword' => 'minimum', 'type' => ['string']],
+        ['model' => $model, 'property' => 'rate', 'keyword' => 'multipleOf', 'type' => ['string']],
     ]);
 });
 
@@ -727,7 +748,9 @@ it('reports a repeated discarded keyword only once per run', function (): void {
     $reader = modelSchemaReader(new ComponentSchemaRegistry(), logger: $logger);
 
     $reader->propertyFor(ConflictedMetadataArticle::class, 'id');
-    $reader->propertyFor(ConflictedMetadataArticle::class, 'id');
+    $second = $reader->propertyFor(ConflictedMetadataArticle::class, 'id');
 
-    expect(discardedKeywordWarnings($logger))->toHaveCount(1);
+    // The second lookup must still be pruned: quieting the log must not quieten the fix with it.
+    expect(discardedKeywordWarnings($logger))->toHaveCount(1)
+        ->and(is_undefined($second?->minimum))->toBeTrue();
 });

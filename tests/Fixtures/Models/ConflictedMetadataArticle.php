@@ -10,7 +10,9 @@ use Illuminate\Database\Eloquent\Model;
  * Fixture for the long-lived app whose model has outgrown its migration: every docblock tag below
  * contradicts the column the migration declares, so the migration contributes keywords that cannot
  * apply to the resolved type. `score` and `slug` agree with their columns and guard against
- * over-pruning.
+ * over-pruning; `rate` is the one column whose migration contributes two inapplicable keywords at
+ * once, since an `unsignedDecimal` head yields `minimum` alongside the scale-derived `multipleOf`
+ * while the `decimal:2` cast resolves the property to a string.
  *
  * @property int          $code
  * @property int          $device
@@ -33,6 +35,7 @@ class ConflictedMetadataArticle extends Model
     protected $guarded = [];
 
     protected $casts = [
+        'rate' => 'decimal:2',
         'tags' => 'array',
     ];
 }
