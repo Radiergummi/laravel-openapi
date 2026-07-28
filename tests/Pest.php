@@ -169,20 +169,26 @@ function inferredResponseRef(?OA\Operation $operation, string $status = '200'): 
 }
 
 /**
- * A PSR-3 logger that records each call as `['level' => ..., 'message' => ...]`, for asserting
- * on warnings emitted by code under test (e.g., the resolver fault boundary).
+ * A PSR-3 logger that records each call as `['level' => ..., 'message' => ..., 'context' => ...]`,
+ * for asserting on warnings emitted by code under test (e.g., the resolver fault boundary).
  *
- * @return AbstractLogger&object{records: list<array{level: mixed, message: string}>}
+ * @return AbstractLogger&object{records: list<array{
+ *     level: mixed, message: string, context: array<string, mixed>
+ * }>}
  */
 function recordingLogger(): AbstractLogger
 {
     return new class () extends AbstractLogger {
-        /** @var list<array{level: mixed, message: string}> */
+        /** @var list<array{level: mixed, message: string, context: array<string, mixed>}> */
         public array $records = [];
 
         public function log($level, string|Stringable $message, array $context = []): void
         {
-            $this->records[] = ['level' => $level, 'message' => (string) $message];
+            $this->records[] = [
+                'level' => $level,
+                'message' => (string) $message,
+                'context' => $context,
+            ];
         }
     };
 }

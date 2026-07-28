@@ -7,6 +7,8 @@ namespace Radiergummi\OpenApi\Tests\Unit\Support\Extraction;
 use Illuminate\Database\Eloquent\Model;
 use OpenApi\Annotations as OA;
 use OpenApi\Generator;
+use Psr\Log\AbstractLogger;
+use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 use Radiergummi\OpenApi\Support\Extraction\EloquentModelToSchema;
 use Radiergummi\OpenApi\Support\Extraction\MigrationColumnReader;
@@ -20,6 +22,7 @@ use Radiergummi\OpenApi\Tests\Fixtures\Models\Article;
 use Radiergummi\OpenApi\Tests\Fixtures\Models\AttributesDefaultArticle;
 use Radiergummi\OpenApi\Tests\Fixtures\Models\Author;
 use Radiergummi\OpenApi\Tests\Fixtures\Models\ClassFormCastArticle;
+use Radiergummi\OpenApi\Tests\Fixtures\Models\ConflictedMetadataArticle;
 use Radiergummi\OpenApi\Tests\Fixtures\Models\CustomTimestampColumnsArticle;
 use Radiergummi\OpenApi\Tests\Fixtures\Models\DescribedArticle;
 use Radiergummi\OpenApi\Tests\Fixtures\Models\EncryptedCastArticle;
@@ -37,19 +40,17 @@ use function Radiergummi\OpenApi\is_undefined;
 uses()->group('openapi');
 
 /**
- * Builds the model's schema and returns the live OA\Schema object. Assert on the object's
- * properties to see the OAS 3.1 type unions (`type: ['…', 'null']`) — swagger-php's raw
- * json_encode down-converts those to the 3.0 `nullable: true` form, so {@see readModelSchema()}
- * (the array view) is only suitable for version-agnostic assertions.
- *
- * @param class-string<Model> $modelClass
+ * Builds a reader wired to the fixture migrations directory, for tests that need the reader itself
+ * (repeated lookups, log assertions) rather than a finished schema.
  */
-function buildModelSchema(string $modelClass, bool $readMigrationColumns = true): OA\Schema
-{
-    $registry = new ComponentSchemaRegistry();
-    $logger = new NullLogger();
+function modelSchemaReader(
+    ComponentSchemaRegistry $registry,
+    bool $readMigrationColumns = true,
+    ?LoggerInterface $logger = null,
+): EloquentModelToSchema {
+    $logger ??= new NullLogger();
 
-    $reader = new EloquentModelToSchema(
+    return new EloquentModelToSchema(
         registry: $registry,
         jsonSchemaFromType: new JsonSchemaFromType($logger, $registry),
         typeResolver: TypeResolver::create(),
@@ -63,6 +64,23 @@ function buildModelSchema(string $modelClass, bool $readMigrationColumns = true)
         ),
         readMigrationColumns: $readMigrationColumns,
     );
+}
+
+/**
+ * Builds the model's schema and returns the live OA\Schema object. Assert on the object's
+ * properties to see the OAS 3.1 type unions (`type: ['…', 'null']`) — swagger-php's raw
+ * json_encode down-converts those to the 3.0 `nullable: true` form, so {@see readModelSchema()}
+ * (the array view) is only suitable for version-agnostic assertions.
+ *
+ * @param class-string<Model> $modelClass
+ */
+function buildModelSchema(
+    string $modelClass,
+    bool $readMigrationColumns = true,
+    ?LoggerInterface $logger = null,
+): OA\Schema {
+    $registry = new ComponentSchemaRegistry();
+    $reader = modelSchemaReader($registry, $readMigrationColumns, $logger);
 
     $key = $reader->build($modelClass);
 
@@ -80,6 +98,25 @@ function buildModelSchema(string $modelClass, bool $readMigrationColumns = true)
 function readModelSchema(string $modelClass): array
 {
     return json_decode(json_encode(buildModelSchema($modelClass)), associative: true);
+}
+
+/**
+ * The context of each discarded-keyword warning a recording logger captured, ignoring anything the
+ * migration reader logged along the way.
+ *
+ * @param AbstractLogger&object{records: list<array{
+ *     level: mixed, message: string, context: array<string, mixed>
+ * }>} $logger
+ *
+ * @return array<int, array<string, mixed>>
+ */
+function discardedKeywordWarnings(AbstractLogger $logger): array
+{
+    return collect($logger->records)
+        ->filter(static fn(array $record): bool => str_contains($record['message'], 'inapplicable'))
+        ->map(static fn(array $record): array => $record['context'])
+        ->values()
+        ->all();
 }
 
 /**
@@ -514,12 +551,20 @@ it('reads maxLength from the migration for an uncast column', function (): void 
 });
 
 it('lets a cast win over the migration type, enriching only undefined fields', function (): void {
-    // decimal:2 cast yields type: string; the decimal(8,2) migration would say number.
-    // The cast type survives, but the migration fills the otherwise-undefined multipleOf.
-    $property = modelProperty(buildModelSchema(Widget::class), 'price');
+    // decimal:2 cast yields type: string; the decimal(8,2) migration would say number. The cast type
+    // survives, and the migration's numeric multipleOf is discarded as inapplicable to a string.
+    // The warning is asserted too: absent multipleOf alone would also hold if none were ever written.
+    $logger = recordingLogger();
+    $property = modelProperty(buildModelSchema(Widget::class, logger: $logger), 'price');
 
     expect($property->type)->toBe('string')
-        ->and($property->multipleOf)->toBe(0.01);
+        ->and(is_undefined($property->multipleOf))->toBeTrue()
+        ->and(discardedKeywordWarnings($logger))->toContain([
+            'model' => Widget::class,
+            'property' => 'price',
+            'keyword' => 'multipleOf',
+            'type' => ['string'],
+        ]);
 });
 
 it('relaxes an uncast unsigned column to minimum 0', function (): void {
@@ -622,4 +667,90 @@ it('fills the $attributes default with no migration column present', function ()
         ->toBe('No summary provided.')
         ->and(modelProperty($schema, 'state')->default)->toBe('draft')
         ->and(is_undefined(modelProperty($schema, 'name')->default))->toBeTrue();
+});
+
+it('drops a numeric keyword when the resolved type has no numeric member', function (): void {
+    // The long-lived-app shape: the key migrated to a ULID (@property string) over an old
+    // increments('id') column, whose minimum: 0 is inert on a string.
+    $property = modelProperty(buildModelSchema(ConflictedMetadataArticle::class), 'id');
+
+    expect($property->type)->toBe('string')
+        ->and(is_undefined($property->minimum))->toBeTrue();
+});
+
+it('drops a string length keyword when the resolved type has no string member', function (): void {
+    $property = modelProperty(buildModelSchema(ConflictedMetadataArticle::class), 'code');
+
+    expect($property->type)->toBe('integer')
+        ->and(is_undefined($property->maxLength))->toBeTrue();
+});
+
+it('drops a string pattern keyword when the resolved type has no string member', function (): void {
+    $property = modelProperty(buildModelSchema(ConflictedMetadataArticle::class), 'device');
+
+    expect($property->type)->toBe('integer')
+        ->and(is_undefined($property->pattern))->toBeTrue();
+});
+
+it('drops a string keyword from an array-typed property', function (): void {
+    $property = modelProperty(buildModelSchema(ConflictedMetadataArticle::class), 'tags');
+
+    expect($property->type)->toBe('array')
+        ->and(is_undefined($property->maxLength))->toBeTrue();
+});
+
+it('keeps a keyword the resolved type does apply to', function (): void {
+    $property = modelProperty(buildModelSchema(ConflictedMetadataArticle::class), 'score');
+
+    expect($property->type)->toBe('integer')
+        ->and($property->minimum)->toBe(0);
+});
+
+it('drops every inapplicable keyword on a property, not just the first', function (): void {
+    // An unsignedDecimal head contributes minimum alongside the scale-derived multipleOf, so the
+    // decimal:2 cast's string type leaves both inert; a prune that stopped at the first would keep
+    // multipleOf.
+    $property = modelProperty(buildModelSchema(ConflictedMetadataArticle::class), 'rate');
+
+    expect($property->type)->toBe('string')
+        ->and(is_undefined($property->minimum))->toBeTrue()
+        ->and(is_undefined($property->multipleOf))->toBeTrue();
+});
+
+it('keeps a keyword while one union member belongs to its type class', function (): void {
+    $property = modelProperty(buildModelSchema(ConflictedMetadataArticle::class), 'slug');
+
+    expect($property->type)->toBe(['string', 'null'])
+        ->and($property->maxLength)->toBe(20);
+});
+
+it('warns for every discarded keyword, naming the model, property and keyword', function (): void {
+    $logger = recordingLogger();
+
+    buildModelSchema(ConflictedMetadataArticle::class, logger: $logger);
+
+    $model = ConflictedMetadataArticle::class;
+
+    expect(discardedKeywordWarnings($logger))->toEqualCanonicalizing([
+        ['model' => $model, 'property' => 'id', 'keyword' => 'minimum', 'type' => ['string']],
+        ['model' => $model, 'property' => 'code', 'keyword' => 'maxLength', 'type' => ['integer']],
+        ['model' => $model, 'property' => 'device', 'keyword' => 'pattern', 'type' => ['integer']],
+        ['model' => $model, 'property' => 'tags', 'keyword' => 'maxLength', 'type' => ['array']],
+        ['model' => $model, 'property' => 'rate', 'keyword' => 'minimum', 'type' => ['string']],
+        ['model' => $model, 'property' => 'rate', 'keyword' => 'multipleOf', 'type' => ['string']],
+    ]);
+});
+
+it('reports a repeated discarded keyword only once per run', function (): void {
+    // propertyFor() is not memoized, so a model reached from fifty routes would otherwise repeat
+    // the same warning fifty times.
+    $logger = recordingLogger();
+    $reader = modelSchemaReader(new ComponentSchemaRegistry(), logger: $logger);
+
+    $reader->propertyFor(ConflictedMetadataArticle::class, 'id');
+    $second = $reader->propertyFor(ConflictedMetadataArticle::class, 'id');
+
+    // The second lookup must still be pruned: quieting the log must not quieten the fix with it.
+    expect(discardedKeywordWarnings($logger))->toHaveCount(1)
+        ->and(is_undefined($second?->minimum))->toBeTrue();
 });
