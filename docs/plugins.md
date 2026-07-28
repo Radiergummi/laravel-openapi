@@ -270,9 +270,15 @@ Recognised shapes:
   so a `store()` authoring `202` documents `202`, not the convention's `201`. A
   `self::`/`static::` constant is not resolved (the same limitation the literal-body
   reader has), and neither is a variable; both keep the conventional status. A
-  `204` never reaches this path at all: the inline-JSON resolver claims it first and
-  documents a body-less `204`, since a resource envelope must not ride on a
-  contentless status.
+  status that cannot carry a resource body makes the resource path **yield
+  entirely**: a **non-2xx** status (`response()->json(X::make($m), 403)`) documents
+  no resource anywhere, leaving the authored error status to the error subsystem,
+  and the contentless successes `204` and `205` document no resource either, since
+  an envelope must not ride on a status RFC 9110 allows no content. A `204` is
+  claimed by the inline-JSON resolver first and documented as a body-less `204`.
+  When several returns disagree on the status the claim is dropped rather than the
+  resource, so an action guarding with a `403` beside a legitimate success branch
+  keeps its schema under the conventional status.
   Chaining anything but `->additional(...)` after `json()` — `->header(...)`,
   `->setStatusCode(...)` — makes the scan refuse the expression outright, so no
   resource is resolved and the operation falls back to a bare `200`. (Distinct from

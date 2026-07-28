@@ -14,6 +14,8 @@ use Illuminate\Support\Facades\Route;
 use LogicException;
 use Psr\Log\LoggerInterface;
 use Radiergummi\OpenApi\Attributes\ResponseResource;
+use Radiergummi\OpenApi\Lint\LintOptions;
+use Radiergummi\OpenApi\Lint\LintRunner;
 use Radiergummi\OpenApi\Plugins\ApiResources\Lint\Rules\ResourceResponseAmbiguous;
 use Radiergummi\OpenApi\Plugins\ApiResources\Support\ResourceClassLocator;
 use Radiergummi\OpenApi\Tests\Fixtures\Models\Article;
@@ -296,6 +298,47 @@ class ReturnExpressionController extends Controller
         return response()->json(NestedAuthorResource::make(Author::query()->firstOrFail()), 204);
     }
 
+    public function jsonWrappedUnprocessableStatus(): JsonResponse
+    {
+        return response()->json(NestedAuthorResource::make(Author::query()->firstOrFail()), 422);
+    }
+
+    public function jsonWrappedConstantForbiddenStatus(): JsonResponse
+    {
+        return response()->json(
+            NestedAuthorResource::make(Author::query()->firstOrFail()),
+            Response::HTTP_FORBIDDEN,
+        );
+    }
+
+    public function jsonWrappedResetContentStatus(): JsonResponse
+    {
+        return response()->json(NestedAuthorResource::make(Author::query()->firstOrFail()), 205);
+    }
+
+    public function jsonWrappedFieldlessForbiddenStatus(): JsonResponse
+    {
+        return response()->json(FieldlessForbiddenResource::make(Author::query()->firstOrFail()), 403);
+    }
+
+    public function jsonWrappedMixedErrorAndBare(bool $flag): JsonResponse|JsonResource
+    {
+        if ($flag) {
+            return response()->json(NestedAuthorResource::make(Author::query()->firstOrFail()), 403);
+        }
+
+        return NestedAuthorResource::make(Author::query()->firstOrFail());
+    }
+
+    public function jsonWrappedAllForbidden(bool $flag): JsonResponse
+    {
+        if ($flag) {
+            return response()->json(NestedAuthorResource::make(Author::query()->firstOrFail()), 403);
+        }
+
+        return response()->json(NestedAuthorResource::make(Author::query()->firstOrFail()), 403);
+    }
+
     public function jsonWrappedDivergentStatuses(bool $flag): JsonResponse
     {
         if ($flag) {
@@ -328,6 +371,13 @@ class ReturnExpressionController extends Controller
         throw new LogicException('Fixture helper; never invoked.');
     }
 }
+
+/**
+ * A resource with neither `#[ResourceField]` nor a readable `toArray()`: documenting it emits a
+ * `resource.fields-undeclared` finding and registers a component, so it detects both side effects
+ * a refused response must not leave behind.
+ */
+class FieldlessForbiddenResource extends JsonResource {}
 
 /**
  * Fixture controller whose `store()` authors its own status, so the authored value and the
@@ -366,6 +416,18 @@ class DivergentStatusStoreController extends Controller
         }
 
         return response()->json(NestedAuthorResource::make(Author::query()->firstOrFail()), 200);
+    }
+}
+
+/**
+ * Fixture controller whose `store()` wraps its resource in a non-2xx status, so the resource path
+ * yields and only the resourceful-route convention is left to speak.
+ */
+class ForbiddenStatusStoreController extends Controller
+{
+    public function store(): JsonResponse
+    {
+        return response()->json(NestedAuthorResource::make(Author::query()->firstOrFail()), 422);
     }
 }
 
@@ -897,17 +959,115 @@ it('carries the authored status through a whitelisted ->additional() chain', fun
         ->and(successStatuses($spec['paths']['/json-additional-chain']['get']['responses']))->toBe([201]);
 });
 
-it('pins the known defect that a non-2xx wrapper status leaves a phantom 200 behind (#584)', function (): void {
+it('yields the resource entirely when the wrapper authors a non-2xx status', function (): void {
     Route::get('/json-forbidden-status', [ReturnExpressionController::class, 'jsonWrappedForbiddenStatus']);
 
     $spec = generateSpec();
     $responses = $spec['paths']['/json-forbidden-status']['get']['responses'];
 
-    // Today's output, not the desired one: the 200 claims a success the action never returns,
-    // alongside the real 403. #584 owns the fix; this test exists so it changes deliberately.
-    expect($responses)->toHaveKeys(['200', '403'])
-        ->and($responses['200']['content']['application/json']['schema']['properties']['data']['$ref'])
-        ->toBe('#/components/schemas/NestedAuthorResource');
+    // A 403 cannot carry a success envelope, so the resource path says nothing at all: the 200 is
+    // the body-less default every non-resource action gets, and no component is registered for a
+    // resource the document never references.
+    expect($responses['200'])->not->toHaveKey('content')
+        ->and($responses)->toHaveKey('403')
+        ->and($spec['components']['schemas'] ?? [])->not->toHaveKey('NestedAuthorResource');
+});
+
+it('yields for a 422 wrapper too, so the rule is not pinned to one status', function (): void {
+    Route::get('/json-unprocessable-status', [ReturnExpressionController::class, 'jsonWrappedUnprocessableStatus']);
+
+    $spec = generateSpec();
+    $responses = $spec['paths']['/json-unprocessable-status']['get']['responses'];
+
+    expect($responses['200'])->not->toHaveKey('content')
+        ->and($responses)->toHaveKey('422')
+        ->and($spec['components']['schemas'] ?? [])->not->toHaveKey('NestedAuthorResource');
+});
+
+it('yields for a non-2xx class constant, not only a bare integer literal', function (): void {
+    Route::get('/json-constant-forbidden', [ReturnExpressionController::class, 'jsonWrappedConstantForbiddenStatus']);
+
+    $spec = generateSpec();
+    $responses = $spec['paths']['/json-constant-forbidden']['get']['responses'];
+
+    // Dropping the range filter widened the read for every status shape, so the constant path
+    // (covered at 2xx by the 202 case) needs its own non-2xx counterpart.
+    expect($responses['200'])->not->toHaveKey('content')
+        ->and($responses)->toHaveKey('403')
+        ->and($spec['components']['schemas'] ?? [])->not->toHaveKey('NestedAuthorResource');
+});
+
+it('yields for a 205, which may no more carry a body than a 204', function (): void {
+    Route::get('/json-reset-content', [ReturnExpressionController::class, 'jsonWrappedResetContentStatus']);
+
+    $spec = generateSpec();
+    $responses = $spec['paths']['/json-reset-content']['get']['responses'];
+
+    // Unlike a 204, nothing downstream claims the call: Core's inline-JSON resolver yields for a
+    // resource argument, so the operation keeps only its body-less default. Losing the status is
+    // the lesser error, since a 205 carrying a resource envelope is invalid either way.
+    expect(successStatuses($responses))->toBe([200])
+        ->and($responses['200'])->not->toHaveKey('content')
+        ->and($spec['components']['schemas'] ?? [])->not->toHaveKey('NestedAuthorResource');
+});
+
+it('documents the resource at the conventional 200 when only one branch authors the error status', function (): void {
+    Route::get('/json-mixed-error-and-bare', [ReturnExpressionController::class, 'jsonWrappedMixedErrorAndBare']);
+
+    $spec = generateSpec();
+    $schema = successSchema($spec, '/json-mixed-error-and-bare');
+
+    // The branches disagree on the status, so the claim is dropped rather than the resource, and
+    // the legitimate success branch keeps its schema. Refusing in the reader would lose it.
+    expect($schema['properties']['data']['$ref'])->toBe('#/components/schemas/NestedAuthorResource')
+        ->and(successStatuses($spec['paths']['/json-mixed-error-and-bare']['get']['responses']))->toBe([200]);
+});
+
+it('yields when every branch agrees on the same non-2xx status', function (): void {
+    Route::get('/json-all-forbidden', [ReturnExpressionController::class, 'jsonWrappedAllForbidden']);
+
+    $spec = generateSpec();
+    $responses = $spec['paths']['/json-all-forbidden']['get']['responses'];
+
+    // Reconciliation carries the agreed 403 through to the resolver instead of nulling it, which
+    // is what lets the refusal fire on a multi-branch action.
+    expect($responses['200'])->not->toHaveKey('content')
+        ->and($responses)->toHaveKey('403')
+        ->and($spec['components']['schemas'] ?? [])->not->toHaveKey('NestedAuthorResource');
+});
+
+it('does not resurrect the resourceful 201 for a store() wrapped in a non-2xx status', function (): void {
+    Route::post('/forbidden-widgets', [ForbiddenStatusStoreController::class, 'store']);
+
+    $spec = generateSpec();
+    $responses = $spec['paths']['/forbidden-widgets']['post']['responses'];
+
+    // With no primary response at all the convention still names the resourceful 201, but it has
+    // no body to carry: the resource must not come back through that door.
+    expect(successStatuses($responses))->toBe([201])
+        ->and($responses['201'])->not->toHaveKey('content')
+        ->and($spec['components']['schemas'] ?? [])->not->toHaveKey('NestedAuthorResource');
+});
+
+it('leaves neither a lint finding nor a component behind for a refused field-less resource', function (): void {
+    Route::get('/json-fieldless-forbidden', [
+        ReturnExpressionController::class,
+        'jsonWrappedFieldlessForbiddenStatus',
+    ]);
+    app()->forgetScopedInstances();
+
+    $schemas = generateSpec()['components']['schemas'] ?? [];
+    app()->forgetScopedInstances();
+
+    $result = app(LintRunner::class)->run(new LintOptions(
+        only: ['resource.fields-undeclared'],
+        uriGlob: 'json-fieldless-forbidden',
+    ));
+
+    // The refusal has to precede both side effects, not merely the envelope: a finding would point
+    // at a response the document never emits, and the component would be an unreferenced orphan.
+    expect($result->findings)->toBe([])
+        ->and($schemas)->not->toHaveKey('FieldlessForbiddenResource');
 });
 
 it('leaves a 204 wrapper status to the inline-JSON reader, which documents it without a body', function (): void {

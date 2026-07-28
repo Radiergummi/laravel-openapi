@@ -36,9 +36,9 @@ use function sprintf;
  * Resolves an Eloquent API Resource return type into its success response: the status the action
  * authored on a `response()->json(<resource>, <status>)` wrapper, or `200 OK` otherwise.
  *
- * Returns null when the action is not a resource endpoint, or when it returns a collection
- * type whose item class is undeclared (the latter is reported by the
- * `resource.response-ambiguous` lint rule).
+ * Returns null when the action is not a resource endpoint, when it returns a collection type whose
+ * item class is undeclared (the latter is reported by the `resource.response-ambiguous` lint rule),
+ * or when the authored status cannot carry a resource body at all.
  */
 #[Scoped]
 final readonly class ResourceResponseResolver implements PrimaryResponseResolver
@@ -66,6 +66,12 @@ final readonly class ResourceResponseResolver implements PrimaryResponseResolver
             return null;
         }
 
+        // Ahead of every other step on purpose: an authored status that cannot carry the envelope
+        // means this response does not exist, so nothing may be emitted or registered for it.
+        if ($target->authoredStatus !== null && !$this->carriesResourceBody($target->authoredStatus)) {
+            return null;
+        }
+
         $this->emitEmptyResourceFinding($descriptor, $target);
 
         $ref = $this->refFor($target);
@@ -76,13 +82,24 @@ final readonly class ResourceResponseResolver implements PrimaryResponseResolver
             default => $this->envelopeFactory->unpaginatedCollection($ref),
         };
 
-        $status = $target->successStatus ?? 200;
+        $status = $target->authoredStatus ?? 200;
 
         return PrimaryResponse::of(new OA\Response([
             'response' => (string) $status,
             'description' => HttpFoundationResponse::$statusTexts[$status] ?? sprintf('HTTP %d', $status),
             'content' => [MediaType::Json->schema($envelope)],
-        ]), statusIsExplicit: $target->successStatus !== null);
+        ]), statusIsExplicit: $target->authoredStatus !== null);
+    }
+
+    /**
+     * Whether a status may carry a resource envelope: a 2xx that is allowed content at all.
+     * `204 No Content` and `205 Reset Content` are excluded because RFC 9110 forbids content on
+     * either; with the Core plugin enabled the inline-JSON resolver claims a `204` first, so only a
+     * registry assembled without Core reaches this method with one.
+     */
+    private function carriesResourceBody(int $status): bool
+    {
+        return $status >= 200 && $status < 300 && $status !== 204 && $status !== 205;
     }
 
     /**
