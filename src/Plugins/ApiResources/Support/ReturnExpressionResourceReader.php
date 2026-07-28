@@ -89,7 +89,8 @@ use function sprintf;
  *
  * Pagination evidence is derived from the argument/receiver ending in a `paginate()`-family call.
  * Anything else refuses with one NOTICE per action and run; `#[ResponseResource]` is the escape
- * hatch. Results are memoised per method.
+ * hatch. Results are memoised per method. The wrapper's status can also be read on its own
+ * ({@see readAuthoredStatus()}), for a caller whose resource is already named by that attribute.
  *
  * @internal
  */
@@ -159,6 +160,14 @@ final class ReturnExpressionResourceReader
     private array $cache = [];
 
     /**
+     * Memoised per `Class::method` for the status-only read, which never notes and so needs no
+     * once-per-run guard of its own.
+     *
+     * @var array<string, ?int>
+     */
+    private array $authoredStatusCache = [];
+
+    /**
      * The method statements of the resolution in flight, so a receiver that is a local variable can
      * be traced to its assignment. Set per `resolve()` call; only ever read synchronously within it.
      *
@@ -207,6 +216,74 @@ final class ReturnExpressionResourceReader
         }
 
         return $this->cache[$key] = $this->resolve($method, $silent);
+    }
+
+    /**
+     * The status the method's `response()->json(<data>, <status>)` wrapper authors, for callers that
+     * already know which resource is returned and need only the status it rides on.
+     *
+     * The data argument is never consulted, which is the whole point: an action carrying
+     * `#[ResponseResource]` has named its resource, and the wrapper's status stays readable even
+     * where the wrapped value is not. Null means no status was authored, none was statically
+     * readable, the return expression could not be reached, or several returns disagreed, so the
+     * conventional status applies. Never notes: the reader's refusal wording advises annotating the
+     * action with `#[ResponseResource]`, which is nonsense advice on an action that already carries
+     * it.
+     *
+     * Only a **bare** `response()->json(...)` is read, never a chained form: the status is taken from
+     * the outer node, so any trailing link (`->header(...)`, `->additional(...)`) hides the call and
+     * the status reads back null. This is a known divergence from {@see targetFromExpression()},
+     * which unwraps {@see self::RESOURCE_PRESERVING_CHAIN_METHODS} and retries. Closing it means
+     * whitelisting the links that cannot change a status, not extending that list.
+     *
+     * @throws ReflectionException
+     */
+    public function readAuthoredStatus(ReflectionMethod $method): ?int
+    {
+        $key = $method->getDeclaringClass()->getName() . '::' . $method->getName();
+
+        if (array_key_exists($key, $this->authoredStatusCache)) {
+            return $this->authoredStatusCache[$key];
+        }
+
+        return $this->authoredStatusCache[$key] = $this->resolveAuthoredStatus($method);
+    }
+
+    /**
+     * @throws ReflectionException
+     */
+    private function resolveAuthoredStatus(ReflectionMethod $method): ?int
+    {
+        $statements = $this->scanner->firstStatements($method, ReturnScan::STATEMENT_LIMIT);
+        $agreed = null;
+        $seen = false;
+
+        foreach ($this->methodLevelReturns($statements) as $return) {
+            $expression = $return->expr;
+
+            // Bare `return;` / `return null;` guard clauses author nothing either way.
+            if ($expression === null || $this->isNullLiteral($expression)) {
+                continue;
+            }
+
+            if ($expression instanceof Variable) {
+                $expression = $this->expressionAssignedTo($expression, $statements, $method, log: false);
+            }
+
+            $status = $expression === null ? null : $this->authoredStatus($expression);
+
+            // Two branches that author different statuses say nothing certain, so the claim is
+            // dropped rather than guessed. A branch authoring *no* status counts as a disagreement:
+            // it returns something other than a json wrapper, e.g. a bare resource. Not to be
+            // confused with a bare `return;`, skipped above, which is no branch at all.
+            if ($seen && $status !== $agreed) {
+                return null;
+            }
+
+            [$seen, $agreed] = [true, $status];
+        }
+
+        return $agreed;
     }
 
     /**

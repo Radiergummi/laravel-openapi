@@ -139,6 +139,12 @@ class LocatorFixtureController
         /** @phpstan-ignore return.type (deliberately loose: the body scan must read the resource construction) */
         return LocatorFixtureResource::make(new stdClass());
     }
+
+    #[ResponseResource(LocatorFixtureResource::class)]
+    public function attributedForbiddenWrapper(): JsonResponse
+    {
+        return response()->json(LocatorFixtureResource::make(new stdClass()), 403);
+    }
 }
 
 function locatorDescriptor(string $method): ActionDescriptor
@@ -169,6 +175,22 @@ it('resolves the item class from a #[ResponseResource] attribute', function (): 
     expect($target?->resourceClass)
         ->toBe(LocatorFixtureResource::class)
         ->and($target?->isCollection)->toBeTrue();
+});
+
+it('carries the wrapper status alongside the attribute-resolved resource', function (): void {
+    $target = ResourceClassLocator::create()->locate(locatorDescriptor('attributedForbiddenWrapper'));
+
+    // The attribute keeps class and cardinality; the wrapper contributes only the status.
+    expect($target?->resourceClass)
+        ->toBe(LocatorFixtureResource::class)
+        ->and($target?->isCollection)->toBeFalse()
+        ->and($target?->authoredStatus)->toBe(403);
+});
+
+it('leaves the authored status null for an attributed action with no return', function (): void {
+    $target = ResourceClassLocator::create()->locate(locatorDescriptor('attributed'));
+
+    expect($target?->authoredStatus)->toBeNull();
 });
 
 it('returns null when the action does not return a resource', function (): void {
