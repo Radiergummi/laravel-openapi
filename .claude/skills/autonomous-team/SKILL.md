@@ -143,7 +143,7 @@ single-active-label / closing-keyword / footer invariants.
 | `set-phase <num> <phase> [comment]` | lead | move phase: enforce one `agent:*` label + post annotation; on a PR, also clears the closed issue's stale label (issue→PR migration) |
 | `finish-pr <pr> [comment]` | lead | un-draft + squash-merge + delete branch + remove worktree + comment; cleanup is best-effort and warns about leftovers |
 | `start-issue <type> <N> [slug]` | planner | branch off fresh `origin/main`, empty commit, push; echoes branch. Checks nothing out — the primary checkout stays free |
-| `open-pr <N> <title> [body-file]` | planner | open PR with labels/`Closes`/footer/assignee (`PR_DRAFT=1` for draft) |
+| `open-pr <N> <title> [body-file]` | planner | open PR with labels/`Closes`/footer/assignee (`PR_DRAFT=1` for draft; head defaults to the unique pushed `<type>/<N>-*` branch, override with `PR_HEAD`) |
 | `worktree-add <branch>` | coder / docs-writer | add/reuse a worktree under `.claude/worktrees/`; echoes path |
 | `sync-branch` | coder / docs-writer | from a worktree: fetch + rebase `origin/main` + `composer check` |
 

@@ -9,6 +9,8 @@
 # Env:
 #   PR_ASSIGNEE   maintainer to assign/request review (default: Radiergummi)
 #   PR_DRAFT=1    open as a draft instead of ready-for-review
+#   PR_HEAD       branch to open the PR from; defaults to the unique pushed
+#                 `<type>/<issue>-*` branch, which is what `start-issue` creates
 #
 # Echoes the created PR URL on success.
 set -euo pipefail
@@ -23,22 +25,28 @@ assignee="${PR_ASSIGNEE:-Radiergummi}"
 # issue number unless the caller pins it.
 head="${PR_HEAD:-}"
 if [ -z "$head" ]; then
-  candidates=$(
+  # Prune first: a remote-tracking ref for a branch deleted after its merge would
+  # otherwise look like a perfectly good single match, and fail at GitHub instead.
+  git fetch --prune origin >/dev/null 2>&1 || true
+
+  refs=$(
     git for-each-ref --format='%(refname:short)' \
       'refs/remotes/origin/feat/*' 'refs/remotes/origin/fix/*' \
-      'refs/remotes/origin/chore/*' 'refs/remotes/origin/docs/*' \
-      | sed 's|^origin/||' \
-      | grep -E "^(feat|fix|chore|docs)/${issue}-" || true
+      'refs/remotes/origin/chore/*' 'refs/remotes/origin/docs/*'
   )
+  # The trailing '-' keeps '587' off 'fix/5871-…'; sed strips the remote prefix.
+  candidates=$(printf '%s\n' "$refs" | sed 's|^origin/||' \
+    | grep -E "^(feat|fix|chore|docs)/${issue}-" || true)
   count=$(printf '%s' "$candidates" | grep -c . || true)
   if [ "$count" -eq 1 ]; then
     head="$candidates"
   elif [ "$count" -eq 0 ]; then
-    echo "error: no pushed branch matches '<type>/${issue}-*'; run bin/start-issue first, or set PR_HEAD" >&2
+    echo "error: no pushed branch matches '<type>/${issue}-*';" >&2
+    echo "       run bin/start-issue first, or set PR_HEAD" >&2
     exit 2
   else
     echo "error: several branches match '<type>/${issue}-*'; set PR_HEAD to pick one:" >&2
-    printf '  %s\n' $candidates >&2
+    printf '%s\n' "$candidates" | sed 's/^/  /' >&2
     exit 2
   fi
 fi
