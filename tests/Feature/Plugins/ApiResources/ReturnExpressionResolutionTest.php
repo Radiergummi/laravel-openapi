@@ -408,6 +408,21 @@ class ReturnExpressionController extends Controller
         return NestedAuthorResource::make(Author::query()->firstOrFail());
     }
 
+    /**
+     * The mirror of {@see attributedMixedErrorAndBare()}: the *success* status comes first, so the
+     * disagreement is only visible to a reconciliation that compares every branch rather than
+     * keeping whichever status it read last.
+     */
+    #[ResponseResource(NestedAuthorResource::class)]
+    public function attributedSuccessThenError(bool $flag): JsonResponse
+    {
+        if ($flag) {
+            return response()->json(NestedAuthorResource::make(Author::query()->firstOrFail()), 202);
+        }
+
+        return response()->json(NestedAuthorResource::make(Author::query()->firstOrFail()), 403);
+    }
+
     #[ResponseResource(NestedAuthorResource::class)]
     public function attributedAllForbidden(bool $flag): JsonResponse
     {
@@ -1354,6 +1369,23 @@ it('drops the status claim, not the attributed resource, when the branches disag
         ->and(successStatuses($spec['paths']['/attributed-mixed']['get']['responses']))->toBe([200]);
 });
 
+it('drops the status claim whichever branch order the disagreement arrives in', function (): void {
+    Route::get('/attributed-success-then-error', [
+        ReturnExpressionController::class,
+        'attributedSuccessThenError',
+    ]);
+
+    $spec = generateSpec();
+    $schema = successSchema($spec, '/attributed-success-then-error');
+
+    // The mirror of the 403-first case, and the row that pins the all-branches-agree comparison: with
+    // the success status first, a reconciliation that merely kept the last status read would carry the
+    // 403 through and yield the resource away entirely. The resource has to survive at the
+    // conventional 200 instead, because two disagreeing branches say nothing certain about the status.
+    expect($schema['properties']['data']['$ref'])->toBe('#/components/schemas/NestedAuthorResource')
+        ->and(successStatuses($spec['paths']['/attributed-success-then-error']['get']['responses']))->toBe([200]);
+});
+
 it('yields when every branch of an attributed action agrees on the same non-2xx status', function (): void {
     Route::get('/attributed-all-forbidden', [ReturnExpressionController::class, 'attributedAllForbidden']);
 
@@ -1365,16 +1397,23 @@ it('yields when every branch of an attributed action agrees on the same non-2xx 
         ->and($spec['components']['schemas'] ?? [])->not->toHaveKey('NestedAuthorResource');
 });
 
-it('pins the unrecognised-chain limitation: the status stays unread on an attributed action', function (): void {
+it('pins a residual: an unrecognised chain after json() still leaves the envelope on a phantom 200', function (): void {
     Route::get('/attributed-header-chain', [ReturnExpressionController::class, 'attributedHeaderChain']);
 
     $spec = generateSpec();
+    $responses = $spec['paths']['/attributed-header-chain']['get']['responses'];
     $schema = successSchema($spec, '/attributed-header-chain');
 
-    // Chaining anything but ->additional() after json() leaves the status unread, exactly as on the
-    // inference path, so the attribute's resource lands on the conventional 200.
+    // Known-bad output, pinned so it cannot change unnoticed — not correct output. Chaining anything
+    // but ->additional() after json() leaves the status unread; that much matches the inference path,
+    // but the consequence does not. There the unread chain costs the *resource*, so nothing is
+    // documented; here the attribute names it regardless, so the envelope and its component still
+    // land on a 200 beside the authored 403 the action actually returns. That is this bug's own shape,
+    // one chain link away, and closing it needs a status-preserving-chain whitelist.
     expect($schema['properties']['data']['$ref'])->toBe('#/components/schemas/NestedAuthorResource')
-        ->and(successStatuses($spec['paths']['/attributed-header-chain']['get']['responses']))->toBe([200]);
+        ->and(successStatuses($responses))->toBe([200])
+        ->and($responses)->toHaveKey('403')
+        ->and($spec['components']['schemas'])->toHaveKey('NestedAuthorResource');
 });
 
 it('drops a content-less attributed status on a non-resourceful route, leaving a body-less 200', function (string $action): void {

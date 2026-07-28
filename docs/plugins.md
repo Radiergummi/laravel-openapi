@@ -291,7 +291,10 @@ Recognised shapes:
   shape the attribute exists for.
   Chaining anything but `->additional(...)` after `json()` — `->header(...)`,
   `->setStatusCode(...)` — makes the scan refuse the expression outright, so no
-  resource is resolved and the operation falls back to a bare `200`. (Distinct from
+  resource is resolved and the operation falls back to a bare `200`. On an action
+  carrying `#[ResponseResource]` the resource survives that refusal, since the
+  attribute named it rather than the body: the envelope lands on the bare `200`
+  alongside the authored error status. A known gap, tracked separately. (Distinct from
   the literal-body `->setStatusCode()` rule in
   [Auto-derivation → Inline JSON responses](auto-derivation.md#inline-json-responses),
   which reads a literal body rather than a resource.)

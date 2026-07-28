@@ -230,6 +230,11 @@ final class ReturnExpressionResourceReader
      * action with `#[ResponseResource]`, which is nonsense advice on an action that already carries
      * it.
      *
+     * The status is read from the outer node only, so nothing is unwrapped: no member of
+     * {@see self::RESOURCE_PRESERVING_CHAIN_METHODS} exists on `JsonResponse`, which is what a
+     * `json()` call returns, so no whitelisted link can sit above one. Revisit if a method that does
+     * exist there is ever added to that list, or the two paths will disagree.
+     *
      * @throws ReflectionException
      */
     public function readAuthoredStatus(ReflectionMethod $method): ?int
