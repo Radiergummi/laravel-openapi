@@ -18,6 +18,31 @@ title="${2:?usage: open-pr <issue-number> <title> [body-file]}"
 body_file="${3:--}"
 assignee="${PR_ASSIGNEE:-Radiergummi}"
 
+# `gh pr create` infers the head from the checked-out branch, but `start-issue` checks
+# nothing out on purpose, so the head has to be named explicitly. Derive it from the
+# issue number unless the caller pins it.
+head="${PR_HEAD:-}"
+if [ -z "$head" ]; then
+  candidates=$(
+    git for-each-ref --format='%(refname:short)' \
+      'refs/remotes/origin/feat/*' 'refs/remotes/origin/fix/*' \
+      'refs/remotes/origin/chore/*' 'refs/remotes/origin/docs/*' \
+      | sed 's|^origin/||' \
+      | grep -E "^(feat|fix|chore|docs)/${issue}-" || true
+  )
+  count=$(printf '%s' "$candidates" | grep -c . || true)
+  if [ "$count" -eq 1 ]; then
+    head="$candidates"
+  elif [ "$count" -eq 0 ]; then
+    echo "error: no pushed branch matches '<type>/${issue}-*'; run bin/start-issue first, or set PR_HEAD" >&2
+    exit 2
+  else
+    echo "error: several branches match '<type>/${issue}-*'; set PR_HEAD to pick one:" >&2
+    printf '  %s\n' $candidates >&2
+    exit 2
+  fi
+fi
+
 # Read the bespoke body (file or stdin).
 if [ "$body_file" = "-" ]; then
   body=$(cat)
@@ -50,6 +75,8 @@ draft_args=()
 [ "${PR_DRAFT:-0}" = "1" ] && draft_args+=(--draft)
 
 gh pr create \
+  --base main \
+  --head "$head" \
   --title "$title" \
   --body "$body" \
   --assignee "$assignee" \

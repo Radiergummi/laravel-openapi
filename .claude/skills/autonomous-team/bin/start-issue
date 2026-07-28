@@ -51,7 +51,9 @@ fi
 git fetch origin main >/dev/null
 
 base=$(git rev-parse origin/main)
-commit=$(git commit-tree "${base}^{tree}" -p "$base" \
+# `-S` is not optional: the repository ruleset rejects unsigned commits, and unlike
+# `git commit`, `commit-tree` ignores `commit.gpgsign`.
+commit=$(git commit-tree -S "${base}^{tree}" -p "$base" \
   -m "${type}: ${title} (#${issue})" \
   -m "Co-Authored-By: ${CO_AUTHOR:-Claude <noreply@anthropic.com>}")
 
