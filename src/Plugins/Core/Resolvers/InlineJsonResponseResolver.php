@@ -34,6 +34,7 @@ use Symfony\Component\HttpFoundation\Response as HttpFoundationResponse;
 
 use function array_filter;
 use function array_values;
+use function in_array;
 use function is_a;
 use function is_int;
 use function sprintf;
@@ -48,6 +49,18 @@ use function sprintf;
 final readonly class InlineJsonResponseResolver implements PrimaryResponseResolver
 {
     public const int STATEMENT_LIMIT = 10;
+
+    /**
+     * Statuses RFC 9110 forbids content on, of those that can reach the body gates below. Only 2xx
+     * values get that far, since {@see ensureSuccessStatus()} refuses everything else first, so the
+     * wider contentless family (`304`, the 1xx range) is deliberately absent.
+     *
+     * A `204` is claimed before any body is read and so never reaches the gate that consults this
+     * set; it is named here because it belongs to the concept, not because the gate needs it.
+     *
+     * @var list<int>
+     */
+    private const array CONTENTLESS_STATUSES = [204, 205];
 
     private StatementNodeFinder $statementNodeFinder;
 
@@ -358,6 +371,29 @@ final readonly class InlineJsonResponseResolver implements PrimaryResponseResolv
     }
 
     /**
+     * Reports a body dropped because its status forbids content.
+     *
+     * Deliberately not {@see note()}: a response *is* inferred here, and that helper's advice to
+     * annotate the action would invite re-authoring the body just removed. The runtime strips a
+     * body only on a `204` or `304`, so on a `205` the application keeps sending what the document
+     * no longer describes, and this notice is the only place that disagreement surfaces.
+     */
+    private function noteDiscardedBody(ReflectionMethod $method, int $status): void
+    {
+        $this->logger->notice(
+            sprintf(
+                'response()->json() call in %s::%s documents status %d without the body it writes: '
+                . 'RFC 9110 forbids content on a %d, so the body cannot be represented. The '
+                . 'application still sends it at runtime.',
+                $method->getDeclaringClass()->getName(),
+                $method->getName(),
+                $status,
+                $status,
+            ),
+        );
+    }
+
+    /**
      * Returns the status when it is 2xx, or null (with a notice) when non-2xx. A non-2xx literal
      * is an error response and must not claim the primary slot.
      */
@@ -471,7 +507,8 @@ final readonly class InlineJsonResponseResolver implements PrimaryResponseResolv
             return null;
         }
 
-        // 204 must not carry a body.
+        // 204 must not carry a body. Claimed before the body is read, because the status is an
+        // affirmative claim of emptiness: whatever the call passed, the runtime sends none of it.
         if ($status === 204) {
             return PrimaryResponse::of(
                 new OA\Response(['response' => '204', 'description' => 'No Content']),
@@ -488,6 +525,21 @@ final readonly class InlineJsonResponseResolver implements PrimaryResponseResolv
         // Empty literal body has no schema.
         if ($result->bodySchema === null) {
             return null;
+        }
+
+        // The body is readable but unrepresentable under the status. Sitting above the one site that
+        // emits `content`, and below the only two entry points, this covers every shape that can
+        // reach it: no call form can document a body under a contentless status.
+        if (in_array($status, self::CONTENTLESS_STATUSES, strict: true)) {
+            $this->noteDiscardedBody($method, $status);
+
+            return PrimaryResponse::of(
+                new OA\Response([
+                    'response' => (string) $status,
+                    'description' => HttpFoundationResponse::$statusTexts[$status] ?? sprintf('HTTP %d', $status),
+                ]),
+                statusIsExplicit: $statusIsExplicit,
+            );
         }
 
         return PrimaryResponse::of(new OA\Response([

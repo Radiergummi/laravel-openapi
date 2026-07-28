@@ -509,7 +509,16 @@ A status you wrote in the call wins over the resource-action
 With no status argument the response documents as `200` and the convention
 still applies, so a conventional `store` with no explicit status is promoted to
 `201`. A literal `204` documents as `204 No Content` without a body schema — the
-runtime strips the body — as does a bare `response()->noContent()`. A
+runtime strips the body — as does a bare `response()->noContent()`. A literal
+`205` likewise documents as `205 Reset Content` without a body schema, for a
+different reason: RFC 9110 §15.3.6 forbids content on a `205`, so a body written
+in the call cannot be represented and is dropped with a generation-log note.
+Unlike a `204`, the runtime strips nothing here (Symfony treats only `204` and
+`304` as empty), so the application still sends that body — the note is the only
+place that disagreement surfaces. This applies where the body *is* readable; a
+`205` whose body the scan cannot read (an empty literal, a resource argument, a
+variable) still degrades to the conventional status, since an unreadable body is
+unknown rather than affirmatively empty. A
 `response()->noContent($status)` is read at its status argument
 (`noContent(202)` / `noContent(status: 202)` documents `202`, still body-less);
 a non-literal or non-2xx status degrades. A **same-class status helper** the
