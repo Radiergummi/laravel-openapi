@@ -227,7 +227,8 @@ final class ReturnExpressionResourceReader
      * where the wrapped value is not. Null means no status was authored, none was statically
      * readable, the return expression could not be reached, or several returns disagreed, so the
      * conventional status applies. Never notes: the reader's refusal wording advises annotating the
-     * action, which is nonsense advice on an action that already is.
+     * action with `#[ResponseResource]`, which is nonsense advice on an action that already carries
+     * it.
      *
      * @throws ReflectionException
      */
