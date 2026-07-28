@@ -94,7 +94,10 @@ final readonly class ResponseHeaderApplier
         OA\Response $primaryResponse,
     ): void {
         foreach ($responses as $response) {
-            if ((string) $response->response === '201' && $this->addressesCreatedResource($response)) {
+            if (
+                (string) $response->response === '201'
+                && $this->addressesCreatedResource($response)
+            ) {
                 $this->appendDerivedHeader($response, 'Location', new OA\Schema([
                     'type' => 'string',
                     'format' => 'uri-reference',
@@ -125,7 +128,7 @@ final readonly class ResponseHeaderApplier
     private function addressesCreatedResource(OA\Response $response): bool
     {
         // "Every media type is scalar" is vacuously true over an empty list, which would strip the
-        // header from a content-less 201 — the commonest one there is. Unset content is the
+        // header from a content-less 201, the commonest one there is. Unset content is the
         // UNDEFINED sentinel, itself a non-empty string, so the array check carries the weight.
         if (!is_array($response->content) || $response->content === []) {
             return true;
@@ -134,7 +137,12 @@ final readonly class ResponseHeaderApplier
         foreach ($response->content as $mediaType) {
             $schema = $mediaType instanceof OA\MediaType ? $mediaType->schema : null;
 
-            if (!$schema instanceof OA\Schema || !is_defined($schema->type) || !is_string($schema->type)) {
+            // An example-scaffolded media type carries no schema at all, and so no evidence.
+            if (!$schema instanceof OA\Schema) {
+                return true;
+            }
+
+            if (!is_defined($schema->type) || !is_string($schema->type)) {
                 return true;
             }
 

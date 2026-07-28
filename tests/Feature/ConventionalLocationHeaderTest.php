@@ -8,6 +8,7 @@ use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\Route;
 use LogicException;
 use Radiergummi\OpenApi\Attributes\Response;
+use Radiergummi\OpenApi\Attributes\ResponseExample;
 use Radiergummi\OpenApi\Attributes\ResponseHeader;
 use Radiergummi\OpenApi\Tests\Fixtures\Resources\PassthroughArticleResource;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
@@ -75,9 +76,17 @@ class AuthoredCreationBodyController extends Controller
         return [];
     }
 
+    /** An example on an otherwise content-less 201 scaffolds a media type carrying no schema. */
+    #[Response(status: 201, description: 'Created')]
+    #[ResponseExample(status: 201, name: 'created', value: ['id' => 1])]
+    public function schemalessPrimary(): array
+    {
+        return [];
+    }
+
     /**
      * The first 2xx attribute becomes the primary response, so declaring the 201 second is what
-     * keeps it an additional response — the case only the applier-sited fix can reach.
+     * keeps it an additional response: the case only the applier-sited fix can reach.
      */
     #[Response(status: 200, description: 'OK', schema: ['type' => 'object'])]
     #[Response(status: 201, description: 'Created', schema: ['type' => 'string'])]
@@ -133,12 +142,15 @@ it('drops the conventional Location header from a scalar JSON 201', function ():
 });
 
 it('drops the conventional Location header from a scalar non-primary 201', function (): void {
-    Route::get('/conventional/scalar-additional', [AuthoredCreationBodyController::class, 'scalarNonPrimary']);
+    Route::get('/conventional/scalar-additional', [AuthoredCreationBodyController::class, 'scalarNonPrimary'])
+        ->middleware('throttle:60,1');
 
     $spec = generateSpec()['paths']['/conventional/scalar-additional']['get']['responses'];
 
-    // The 200 is the primary response, so the 201 is reached only by the per-response loop.
-    expect($spec['200']['content']['application/json']['schema']['type'])->toBe('object')
+    // The rate-limit pair attaches to the primary response only, so its placement proves the 200 is
+    // primary and the 201 was reached by the per-response loop alone.
+    expect($spec['200']['headers'] ?? [])->toHaveKey('X-RateLimit-Limit')
+        ->and($spec['201']['headers'] ?? [])->not->toHaveKey('X-RateLimit-Limit')
         ->and($spec['201']['headers'] ?? [])->not->toHaveKey('Location');
 });
 
@@ -152,7 +164,7 @@ it('keeps the conventional Location header on a resource 201', function (): void
     $response = createdResponse('/conventional/resource');
 
     expect($response)->not->toBeNull()
-        ->and($response['headers']['Location']['schema'])
+        ->and($response['headers']['Location']['schema'] ?? null)
         ->toBe(['type' => 'string', 'format' => 'uri-reference']);
 });
 
@@ -162,7 +174,20 @@ it('keeps the conventional Location header on an object-bodied 201', function ()
     $response = createdResponse('/conventional/object', 'get');
 
     expect($response)->not->toBeNull()
-        ->and($response['headers'])->toHaveKey('Location');
+        ->and($response['headers'] ?? [])->toHaveKey('Location');
+});
+
+// An example on a body-less response scaffolds a media type with no schema at all, so the content
+// exists while carrying no evidence either way.
+it('keeps the conventional Location header on a 201 whose media type carries no schema', function (): void {
+    Route::get('/conventional/schemaless', [AuthoredCreationBodyController::class, 'schemalessPrimary']);
+
+    $response = createdResponse('/conventional/schemaless', 'get');
+
+    expect($response)->not->toBeNull()
+        ->and($response['content']['application/json'])->not->toHaveKey('schema')
+        ->and($response['content']['application/json'])->toHaveKey('examples')
+        ->and($response['headers'] ?? [])->toHaveKey('Location');
 });
 
 it('keeps the conventional Location header on a 201 whose schema declares no type', function (): void {
@@ -172,16 +197,18 @@ it('keeps the conventional Location header on a 201 whose schema declares no typ
 
     expect($response)->not->toBeNull()
         ->and($response['content']['application/json']['schema'])->not->toHaveKey('type')
-        ->and($response['headers'])->toHaveKey('Location');
+        ->and($response['headers'] ?? [])->toHaveKey('Location');
 });
 
 it('keeps the conventional Location header on an object-bodied non-primary 201', function (): void {
-    Route::get('/conventional/object-additional', [AuthoredCreationBodyController::class, 'objectNonPrimary']);
+    Route::get('/conventional/object-additional', [AuthoredCreationBodyController::class, 'objectNonPrimary'])
+        ->middleware('throttle:60,1');
 
     $spec = generateSpec()['paths']['/conventional/object-additional']['get']['responses'];
 
-    expect($spec['200']['content']['application/json']['schema']['type'])->toBe('object')
-        ->and($spec['201']['headers'])->toHaveKey('Location');
+    expect($spec['200']['headers'] ?? [])->toHaveKey('X-RateLimit-Limit')
+        ->and($spec['201']['headers'] ?? [])->not->toHaveKey('X-RateLimit-Limit')
+        ->and($spec['201']['headers'] ?? [])->toHaveKey('Location');
 });
 
 // An all-quantifier over media types is vacuously true on an empty list, so a 201 with no content
@@ -193,7 +220,7 @@ it('keeps the conventional Location header on a content-less 201', function (): 
 
     expect($response)->not->toBeNull()
         ->and($response['content'] ?? null)->toBeNull()
-        ->and($response['headers'])->toHaveKey('Location');
+        ->and($response['headers'] ?? [])->toHaveKey('Location');
 });
 
 // endregion
@@ -206,7 +233,7 @@ it('leaves an authored Location header on a streamed 201 untouched', function ()
     $response = createdResponse('/conventional/authored');
 
     expect($response)->not->toBeNull()
-        ->and($response['headers']['Location']['description'])->toBe('Authored location');
+        ->and($response['headers']['Location']['description'] ?? null)->toBe('Authored location');
 });
 
 it('still emits the rate-limit headers on a throttled streamed 201', function (): void {
