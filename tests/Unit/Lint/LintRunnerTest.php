@@ -10,6 +10,7 @@ use Radiergummi\OpenApi\Lint\RuleRegistry;
 use Radiergummi\OpenApi\Tests\Fixtures\Lint\BrokenController;
 use Radiergummi\OpenApi\Tests\Fixtures\Lint\CleanController;
 use Radiergummi\OpenApi\Tests\Fixtures\Lint\ResponseEmptyController;
+use Radiergummi\OpenApi\Tests\Fixtures\Lint\ScalarResponseController;
 use Radiergummi\OpenApi\Tests\Fixtures\Lint\SuppressedResponseEmptyController;
 
 uses()->group('openapi', 'lint');
@@ -42,6 +43,37 @@ it('returns exit code 1 and non-empty findings for a broken route', function ():
     expect($result->exitCode)->toBe(1)
         ->and($result->findings)->not->toBe([]);
 });
+
+// Registered here rather than in `beforeEach`: the nullable Data return contributes a component
+// schema, and component findings are not route-scoped, so they would leak into every other test's
+// glob in this file.
+it('does not report an empty body for a route whose 2xx body is scalar', function (string $uriGlob): void {
+    Route::get('lint-runner/scalar-text', [ScalarResponseController::class, 'text']);
+    Route::get('lint-runner/scalar-download', [ScalarResponseController::class, 'download']);
+    Route::get('lint-runner/scalar-nullable-text', [ScalarResponseController::class, 'nullableText']);
+    Route::get('lint-runner/scalar-nullable-data', [ScalarResponseController::class, 'nullableData']);
+
+    $result = app(LintRunner::class)->run(new LintOptions(
+        level: 2,
+        uriGlob: $uriGlob,
+    ));
+
+    $emptyBodyFindings = array_filter(
+        $result->findings,
+        static fn($finding): bool => $finding->ruleId === 'response.success-empty-body',
+    );
+
+    expect($emptyBodyFindings)->toBe([]);
+})->with([
+    'string return' => 'lint-runner/scalar-text*',
+    'streamed binary download' => 'lint-runner/scalar-download*',
+
+    // OAS 3.1 nullability produces both of its shapes at the top level of a response body: a
+    // widened `type: [string, null]` array, and a `oneOf` split that moves the `$ref` onto an
+    // inner branch, leaving the outer schema with no type and no ref.
+    'nullable string return' => 'lint-runner/scalar-nullable-text*',
+    'nullable Data return' => 'lint-runner/scalar-nullable-data*',
+]);
 
 it('honours --no-suppress by surfacing findings hidden by an #[IgnoreLint] attribute', function (): void {
     $withSuppressions = app(LintRunner::class)->run(new LintOptions(
