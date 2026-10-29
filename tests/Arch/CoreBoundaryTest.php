@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-// Enforces the one-way dependencies stated in CLAUDE.md. Core moved under Plugins/, so these
+// Enforces the one-way dependencies between Support, Contracts and the plugins. Core moved under Plugins/, so these
 // expectations target the real namespaces (they previously named the long-gone
 // `Radiergummi\OpenApi\Core` and passed vacuously).
 
@@ -17,8 +17,12 @@ arch('Core must not depend on a convention plugin')
         'Radiergummi\OpenApi\Plugins\SpatieData',
     ]);
 
-// CLAUDE.md: "src/Support/ … must not depend on any plugin". Core being a plugin now, this
+// Support and Contracts must not depend on any plugin. Core being a plugin now, this
 // generalises the former "Support must not depend on Core".
 arch('Support must not depend on any plugin')
     ->expect('Radiergummi\OpenApi\Support')
+    ->not->toUse('Radiergummi\OpenApi\Plugins');
+
+arch('Contracts must not depend on any plugin')
+    ->expect('Radiergummi\OpenApi\Contracts')
     ->not->toUse('Radiergummi\OpenApi\Plugins');

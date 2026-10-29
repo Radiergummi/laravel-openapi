@@ -23,3 +23,19 @@ it('gives every registered rule a non-empty description and a valid severity', f
         $seenIds[] = $rule->id;
     }
 })->group('openapi', 'lint');
+
+it('lists every registered rule in the hand-maintained docs/linting.md catalog', function (): void {
+    /** @var RuleRegistry $registry */
+    $registry = app(RuleRegistry::class);
+    $docs = (string) file_get_contents(dirname(__DIR__, 3) . '/docs/linting.md');
+
+    preg_match('/<!-- BEGIN: lint-rule-catalog -->(.*)<!-- END: lint-rule-catalog -->/s', $docs, $catalog);
+    preg_match_all('/^\| `([^`]+)` \|/m', $catalog[1] ?? '', $documented);
+
+    $missing = array_values(array_diff(
+        array_map(static fn(Rule $rule): string => $rule->id, $registry->all()),
+        $documented[1],
+    ));
+
+    expect($missing)->toBe([]);
+})->group('openapi', 'lint');
