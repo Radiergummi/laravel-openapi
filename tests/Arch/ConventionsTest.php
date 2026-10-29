@@ -2,7 +2,6 @@
 
 declare(strict_types=1);
 
-// strict_types — CLAUDE.md: "Every PHP file has a strict-types declaration."
 arch('source files declare strict types')
     ->expect('Radiergummi\OpenApi')
     ->toUseStrictTypes();
